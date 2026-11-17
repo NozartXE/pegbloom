@@ -113,7 +113,7 @@
     const sim = api.createSim(seed, 'Normal');
     let best = null;
     let guard = 0;
-    while (guard < MAX_STEPS && !sim.over) {
+    while (guard < MAX_STEPS && !(sim.over && (sim.over.result === 'won' || sim.over.result === 'lost'))) {
       if (sim.shower === 5) {
         const now = readBoard(sim);
         if (now.balls >= 10 && now.floaters >= 2) return { tick: now.tick, balls: now.balls, floaters: now.floaters };
@@ -134,7 +134,7 @@
     const sim = currentSim();
     if (!sim) return null;
     let guard = 0;
-    while (guard < MAX_STEPS && !sim.over && !inShower(sim, 5)) {
+    while (guard < MAX_STEPS && !(sim.over && (sim.over.result === 'won' || sim.over.result === 'lost')) && !inShower(sim, 5)) {
       if (!drive(sim, policy)) break;
       guard += 1;
     }
@@ -153,9 +153,11 @@
     if (!m || typeof m.startRun !== 'function') return null;
     const policy = qaBot({});
     // Pass 1 is a scratch run on the shared sim API: it only measures, the run main shows is rebuilt in pass 2.
+    // Pass 2 gets a FRESH policy: bot policies carry internal timing state, and reusing pass 1's spent
+    // policy changes its play (it died a shower earlier), which would desync the replay from the measurement.
     const dense = findDenseTick(seed, policy);
     const target = dense ? dense.tick : 0;
-    const sim = freezeAtTick(seed, policy, target);
+    const sim = freezeAtTick(seed, qaBot({}), target);
     m.setScreen('play');
     m.stage(true);
     m.freeze(true);
@@ -238,11 +240,11 @@
     const sim = currentSim();
     const b = bot();
     if (!sim || !b) return sim;
-    for (let i = 0; i < MAX_STEPS && !sim.over; i += 1) {
+    for (let i = 0; i < MAX_STEPS && !(sim.over && (sim.over.result === 'won' || sim.over.result === 'lost')); i += 1) {
       b.step(sim, qaBot({ minLive: 13, maxLive: 18, draftPick: 2, buildCap: 11 }));
       if (sim.over && sim.over.result === 'won') break;
     }
-    if (!sim.over) {
+    if (!(sim.over && (sim.over.result === 'won' || sim.over.result === 'lost'))) {
       // An honest unfinished run still closes through the sim's own loss path.
       sim.over = { result: 'lost', reason: 'sunwell', shower: sim.shower };
       sim.phase = 'lost';

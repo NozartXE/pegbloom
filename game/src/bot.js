@@ -62,7 +62,10 @@
   }
 
   function fill(o) {
-    return o && typeof o === 'object' ? o : create(null);
+    // Raw option objects (runToEnd's callers pass them) are not bots: they lack rail and the
+    // counters play() reads. Normalize anything that is not a create() product into a real bot.
+    if (!o || typeof o !== 'object' || !o.rail) return create(o);
+    return o;
   }
 
   // Build cards cover the right column, not the board, so a click at BOARD x/y cannot misplace one.
@@ -195,7 +198,7 @@
   function runToEnd(s, opts) {
     const b = fill(opts);
     let guard = 0;
-    while (s && !s.over && guard < b.maxTicks) {
+    while (s && !(s.over && (s.over.result === 'won' || s.over.result === 'lost')) && guard < b.maxTicks) {
       step(s, b);
       guard += 1;
       if (s.over && b.endless && s.over.result === 'won') break;
