@@ -190,6 +190,20 @@
         }
       }
 
+      // Cup divider posts: static, never lit, never scored - they only turn rim bounces into drains.
+      const rim = sim.rimPegs;
+      if (rim && rim.length) {
+        for (let i = 0; i < rim.length; i += 1) {
+          const post = rim[i];
+          const py = post.y - ball.y;
+          const px = post.x - ball.x;
+          const pr = ball.r + post.r;
+          if (px * px + py * py > (pr + reach) * (pr + reach)) continue;
+          const res = collideCircle(ball, post.x, post.y, post.r, phys.wallRestitution, TANGENT_JITTER * 0.5, sim);
+          if (res && res.impact > 0) emit(sim, { type: 'rim', x: post.x, y: post.y, impact: res.impact, ball: ball });
+        }
+      }
+
       for (let i = 0; i < bumpers.length; i += 1) {
         const bump = bumpers[i];
         const res = collideCircle(ball, bump.x, bump.y, bump.r, phys.restitution, TANGENT_JITTER * 0.5, sim);
@@ -335,7 +349,7 @@
     if (!balls || !balls.length) return 0;
     const phys = config().physics;
     const f = board().field;
-    const cupRowY = Math.min(board().cupY, f.y + f.h - board().cupHeight);
+    const cupRowY = board().cupY;
     const wind = sim.wind || {};
     const windForce = fin(wind.force);
     let alive = 0;

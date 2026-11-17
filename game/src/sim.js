@@ -133,6 +133,7 @@
     sim.phase = 'play';
     sim.building = false;
     sim.cups = startCups();
+    sim.rimPegs = globalThis.PB_Pegboard.buildRimPegs(c, sim.cups);
     for (let i = 0; i < sim.pegs.length; i += 1) {
       const peg = sim.pegs[i];
       peg.lit = 0;
@@ -192,6 +193,7 @@
     const sockets = globalThis.PB_Pegboard.buildSockets(c);
     const f = c.board.field;
     const runSeed = seed == null ? 'pegbloom' : String(seed);
+    const cups = globalThis.PB_Pegboard.buildCups(c);
 
     const sim = {
       seed: runSeed,
@@ -205,7 +207,8 @@
       pegs: pegs,
       pegGrid: globalThis.PB_Pegboard.buildRows(c, pegs),
       sockets: sockets,
-      cups: globalThis.PB_Pegboard.buildCups(c),
+      cups: cups,
+      rimPegs: globalThis.PB_Pegboard.buildRimPegs(c, cups),
       gates: globalThis.PB_Gates.makeGates(c),
       tulips: [],
       wind: globalThis.PB_Gates.windFor('still'),

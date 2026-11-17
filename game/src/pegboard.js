@@ -16,6 +16,10 @@
     return v < lo ? lo : v > hi ? hi : v;
   }
 
+  function num(v, d) {
+    return typeof v === 'number' && isFinite(v) ? v : d;
+  }
+
   // Which grid row a board y sits on, nearest first; used for O(1)-ish bucket lookups.
   function rowAt(config, y) {
     const b = config.board;
@@ -33,7 +37,7 @@
     const b = c.board;
     const field = b.field;
     const half = b.pegSpacingX * 0.5;
-    const wallGap = b.ballRadius * 2 + b.pegRadius * 2 + 4;
+    const wallGap = Math.round((field.w - (b.pegCols - 1) * b.pegSpacingX - half) * 0.5);
     const rowCount = Math.max(1, b.pegRows - 1);
     const pegs = [];
     for (let r = 0; r < rowCount; r += 1) {
@@ -130,59 +134,52 @@
     return result;
   }
 
-  // Fixed placement sockets: a column of slots on each side gutter plus two mid slots above the cups.
+  // Fixed placement sockets: five slots down each inner edge of the field, left first then right.
   function buildSockets(config) {
     const c = config || cfg();
     const b = c.board;
     const f = b.field;
-    const rows = Math.max(2, b.socketRows);
-    const perRow = Math.max(2, b.socketsPerRow);
-    const gutterX = f.x + 22;
-    const rightGutterX = f.x + f.w - 22;
-    const top = f.y + 56;
-    const bottom = f.y + f.h - 116;
-    const step = rows > 1 ? (bottom - top) / (rows - 1) : 0;
+    const perSide = Math.max(1, b.socketsPerSide);
+    const inset = num(b.socketInsetX, 20);
+    const xs = [f.x + inset, f.x + f.w - inset];
+    const ys = b.socketYs || [];
+    const count = Math.min(perSide, ys.length);
 
     const sockets = [];
-    for (let r = 0; r < rows; r += 1) {
-      const y = top + step * r;
-      sockets.push({ x: gutterX, y: y, kind: null, level: 0, side: 'left', index: sockets.length });
-      sockets.push({ x: rightGutterX, y: y, kind: null, level: 0, side: 'right', index: sockets.length });
-    }
-
-    const midCount = Math.max(0, perRow - rows * 2);
-    for (let m = 0; m < midCount; m += 1) {
-      const x = f.x + f.w * ((m + 1) / (midCount + 1));
-      sockets.push({ x: x, y: bottom, kind: null, level: 0, side: 'mid', index: sockets.length });
+    for (let i = 0; i < count; i += 1) {
+      sockets.push({ x: xs[0], y: ys[i], kind: null, level: 0, side: 'left', index: sockets.length });
+      sockets.push({ x: xs[1], y: ys[i], kind: null, level: 0, side: 'right', index: sockets.length });
     }
     return sockets;
   }
 
-  // Nine bloom cups across the cup row; outer cups cheap, centre cups rich.
+  // Nine bloom cups spanning the field width; cup tops pair with rim pegs physics bounces off.
   function buildCups(config) {
     const c = config || cfg();
     const b = c.board;
     const f = b.field;
     const n = Math.max(1, b.cupCount);
-    const table = Array.isArray(c.cascade && c.cascade.cupScore) ? c.cascade.cupScore : [];
+    const table = Array.isArray(b.cupScore) ? b.cupScore : [];
     const cols = globalThis.PB_NAMES && globalThis.PB_NAMES.cupColours ? globalThis.PB_NAMES.cupColours : [];
     const pal = palette();
     const cupW = b.cupWidth;
-    const cupH = Math.min(b.cupHeight, 92);
-    const gap = Math.max(0, Math.round((f.w - n * cupW) / (n + 1)));
-    const y = Math.min(b.cupY, f.y + f.h - cupH);
+    const cupH = b.cupHeight;
+    const gap = num(b.cupGap, Math.max(2, (f.w - n * cupW) / (n - 1)));
+    const rowW = n * cupW + (n - 1) * gap;
+    const left = f.x + (f.w - rowW) * 0.5;
+    const y = num(b.cupY, f.y + f.h);
     const cups = [];
     for (let i = 0; i < n; i += 1) {
-      const x = f.x + gap + i * (cupW + gap);
+      const x = left + cupW * 0.5 + i * (cupW + gap);
       const colourName = cols[i % cols.length] || 'gold';
       const colour = pal[colourName] || pal.gold;
-      const mirrored = Math.min(i, n - 1 - i);
-      const src = table.length ? table[Math.min(mirrored, table.length - 1)] : 10;
+      const src = table.length ? num(table[Math.min(i, table.length - 1)], 10) : 10;
       cups.push({
         x: x,
         w: cupW,
         y: y,
         h: cupH,
+        rimTop: y + 5,
         value: src,
         colour: colour,
         colourName: colourName,
@@ -216,11 +213,30 @@
     return cup ? cup.x + cup.w * 0.5 : 0;
   }
 
+  // Divider posts between the cups: tiny static circles a ball can bounce off at the cup mouth line.
+  function buildRimPegs(config, cups) {
+    const c = config || cfg();
+    const b = c.board;
+    const list = cups || buildCups(c);
+    const r = Math.max(2, num(b.rimPostR, 2));
+    const pegs = [];
+    let prev = null;
+    for (let i = 0; i < list.length; i += 1) {
+      if (prev) {
+        const x = prev.x + prev.w * 0.5 + ((list[i].x - list[i].w * 0.5) - (prev.x + prev.w * 0.5)) * 0.5;
+        pegs.push({ x: x, y: prev.y + 5, r: r, rim: true, lit: 0, dead: 0, golden: false, hitFlash: 0 });
+      }
+      prev = list[i];
+    }
+    return pegs;
+  }
+
   globalThis.PB_Pegboard = {
     buildPegs: buildPegs,
     buildRows: buildRows,
     buildSockets: buildSockets,
     buildCups: buildCups,
+    buildRimPegs: buildRimPegs,
     pegAt: pegAt,
     pegsInRows: pegsInRows,
     nearestPegs: nearestPegs,

@@ -5,7 +5,7 @@
   const GATE_MIN = -Math.PI / 3;
   const GATE_MAX = Math.PI / 3;
   const GATE_STEP = Math.PI / 12;
-  const GATE_LEN = 128;
+  const GATE_LEN = (globalThis.PB_CONFIG && globalThis.PB_CONFIG.board && globalThis.PB_CONFIG.board.gateLength) || 120;
   const EASE_RATE = 0.16;
 
   function config() {
@@ -22,21 +22,20 @@
     return clamp(Math.round(angle / GATE_STEP) * GATE_STEP, GATE_MIN, GATE_MAX);
   }
 
-  // Gate anchors spread across the field just under the drop rail; each petal is flat until aimed.
+  // Gate anchors on the field centre line at the config gateYs; each petal is flat until aimed.
   function gatePositions(c) {
     const f = c.board.field;
-    const y = c.board.gateTopY + (c.board.gateBottomY - c.board.gateTopY) * 0.25;
-    return [
-      { x: f.x + f.w * 0.2, y: y, side: 'left' },
-      { x: f.x + f.w * 0.5, y: y, side: 'mid' },
-      { x: f.x + f.w * 0.8, y: y, side: 'right' },
-    ];
+    const ys = c.board.gateYs || [250, 390, 530];
+    const sides = ['top', 'mid', 'low'];
+    return ys.map(function (y, i) {
+      return { x: f.x + f.w * 0.5, y: y, side: sides[i] || 'mid' };
+    });
   }
 
   function makeGates(c) {
     const positions = gatePositions(c || config());
     return positions.map(function (p) {
-      return { x: p.x, y: p.y, angle: 0, target: 0, len: GATE_LEN, side: p.side, on: true };
+      return { x: p.x, y: p.y, angle: 0, target: 0, len: (c || config()).board.gateLength || GATE_LEN, side: p.side, on: true };
     });
   }
 

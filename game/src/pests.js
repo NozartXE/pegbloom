@@ -108,7 +108,7 @@
   // The base of the Sunwell spout: just outside the field's right wall, on the cup row.
   function spout() {
     const f = field();
-    const cupY = Math.min(config().board.cupY, f.y + f.h - config().board.cupHeight);
+    const cupY = config().board.cupY;
     return { x: f.x + f.w + 6, y: num(cupY, f.y + f.h) + 30 };
   }
 
