@@ -5,8 +5,8 @@
   const W = 1280;
   const H = 800;
   const HEAD = { x: 40, y: 40, w: 1200 };
-  const SUB_Y = 96;
-  const CARDS = { x: 24, top: 126, w: 402, h: 340, gap: 21 };
+  const SUB_Y = 124;
+  const CARDS = { x: 24, top: 142, w: 402, h: 336, gap: 21 };
   const OWNED = { x: 24, y: 484, w: 1260, h: 116 };
   const FOOT = { x: 24, y: 610, h: 148 };
   const PICK_SIZE = 62;
@@ -336,11 +336,15 @@
     ctx.lineWidth = 2;
     ctx.strokeStyle = p.ink;
     ctx.stroke();
-    // subline: "Shower N of 9 - <Day>", the next goal and the run wallet
-    textFit(ctx, 'SHOWER ' + target + ' OF ' + showersTotal() + ' - ' + dayName(showerDay(target)), SUB_Y, 460, 24, { align: 'left', fill: p.ink, minSize: 12 });
+    // subline: "Shower N of 9 - <Day>", the next goal and the run wallet.
+    // This row used to sit at y 96, inside the heading's descenders and struck
+    // through by its underline; it now clears both. The SHOWER call also had
+    // its arguments scrambled (x was the old SUB_Y, y was 460, maxW 24), which
+    // crushed it into invisibility - it is a normal left-aligned call now.
+    textFit(ctx, 'SHOWER ' + target + ' OF ' + showersTotal() + ' - ' + dayName(showerDay(target)), HEAD.x + 4, SUB_Y, 290, 21, { align: 'left', fill: p.ink, minSize: 12 });
     const row = showerRow(target);
     const goal = row.boss ? 'GOAL: DRIVE OFF THE DUSKFATHER' : 'GOAL: BLOOM ' + num(row.quota, 0) + ' CUPS';
-    textFit(ctx, goal, HEAD.x + 4, SUB_Y, 440, 24, { align: 'left', fill: p.ink, minSize: 12 });
+    textFit(ctx, goal, HEAD.x + 308, SUB_Y, 430, 21, { align: 'left', fill: p.ink, minSize: 12 });
     const x = HEAD.x + HEAD.w - 4;
     textFit(ctx, 'SEEDS ' + Math.round(num(sim.seeds, 0)), x, SUB_Y, 120, 26, { align: 'right', fill: p.leaf, minSize: 12 });
     textFit(ctx, 'SCORE ' + formatScore(num(sim.score, 0)), x - 140, SUB_Y, 140, 22, { align: 'right', fill: p.ink, minSize: 12 });
