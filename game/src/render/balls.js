@@ -329,7 +329,7 @@
 
   // ---------- petal gates ----------
 
-  function gun(n, x, y, w, h, colour) {
+  function gun(ctx, n, x, y, w, h, colour) {
     const p = palette();
     roundRectPath(ctx, x - w * 0.5, y - h * 0.5, w, h, h * 0.45);
     ctx.fillStyle = colour || p.gold;
@@ -427,7 +427,7 @@
     const tipY = num(g.y, 0) + Math.sin(angle) * half * (hinge > 0 ? 1 : -1);
     const offX = Math.cos(angle) * 16 * (hinge > 0 ? 1 : -1);
     const offY = 18;
-    gun(9, tipX + offX - offX * 0.2, tipY + offY, 18, 18, p.mint);
+    gun(ctx, 9, tipX + offX - offX * 0.2, tipY + offY, 18, 18, p.mint);
     text(ctx, String(i + 1), tipX + offX - offX * 0.2, tipY + offY + 1, 13, { align: 'center', fill: p.ink });
     const tilt = Math.round(((angle - Math.PI * 0.5) * 180) / Math.PI);
     text(ctx, (tilt > 0 ? '+' : '') + tilt + ' DEG', tipX, tipY + 2, 13, { align: 'center', fill: p.ink, stroke: p.paper, strokeW: 4 });
