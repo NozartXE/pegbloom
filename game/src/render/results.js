@@ -6,18 +6,18 @@
   const H = 800;
   const TITLE = { x: 24, y: 54, w: 420 };
   const PLAQUE = { x: 24, y: 94, w: 280, h: 296 };
-  const SPOT = { x: 344, y: 168, s: 0.84 };
+  const SPOT = { x: 448, y: 226, s: 0.66 };
   const BUILD = { x: 572, y: 94, w: 300, h: 296 };
   const META = { x: 906, y: 94, w: 350, h: 296 };
   const META_Y = { x: 910, y: 118, w: 342 };
   const TILES = { x: 24, y: 414, w: 656, h: 76 };
-  const THRESH = { x: 24, y: 514, w: 656, h: 212 };
+  const THRESH = { x: 24, y: 506, w: 656, h: 188 };
   const FEATS = { x: 704, y: 414, w: 552, h: 100 };
   const GOAL = { x: 704, y: 534, w: 552, h: 64 };
-  const HISTORY = { x: 704, y: 620, w: 552, h: 98 };
+  const HISTORY = { x: 704, y: 608, w: 552, h: 98 };
   const GRAPH = { x: 24, y: 712, w: 1232, h: 0 };
-  const RUN_AGAIN = { x: 24, y: 712, w: 720, h: 64 };
-  const TO_TITLE = { x: 756, y: 712, w: 500, h: 64 };
+  const RUN_AGAIN = { x: 24, y: 712, w: 720, h: 40 };
+  const TO_TITLE = { x: 756, y: 712, w: 500, h: 40 };
   const CONTROLS = 'R / ENTER run again - T title - GRADE AND FEATS ARE SAVED - H how to - A almanac';
 
   function palette() {
@@ -554,13 +554,16 @@
       }
     }
     ctx.restore();
+    // Story chip: it used to be 420 wide centred on the old spot, where it
+    // covered the score digits and reached into the build panel. It is now a
+    // compact chip under the relocated moth, clear of both neighbours.
     const line = story;
-    roundRect(ctx, SPOT.x - 210, SPOT.y + 158, 420, 34, 17, view.won ? mix(p.paper, p.mint, 0.4) : mix(p.paper, p.coral, 0.2));
+    roundRect(ctx, SPOT.x - 120, SPOT.y + 132, 240, 34, 17, view.won ? mix(p.paper, p.mint, 0.4) : mix(p.paper, p.coral, 0.2));
     ctx.lineWidth = 2.6;
     ctx.strokeStyle = p.ink;
-    roundRectPath(ctx, SPOT.x - 210, SPOT.y + 158, 420, 34, 17);
+    roundRectPath(ctx, SPOT.x - 120, SPOT.y + 132, 240, 34, 17);
     ctx.stroke();
-    textFit(ctx, line, SPOT.x, SPOT.y + 175, 396, 18, { align: 'center', fill: p.ink, minSize: 9 });
+    textFit(ctx, line, SPOT.x, SPOT.y + 149, 216, 18, { align: 'center', fill: p.ink, minSize: 9 });
   }
 
   function star(ctx, x, y, r, fill) {
@@ -614,8 +617,8 @@
     panel(ctx, THRESH.x, THRESH.y, THRESH.w, THRESH.h, { r: 14, fill: p.paper, border: p.ink, tab: 'GRADE THRESHOLDS', tabSize: 16, tabFill: p.gold });
     const list = grades();
     const earnedIdx = list.map(function (g) { return g.grade; }).indexOf(view.grade.grade);
-    const top = THRESH.y + 26;
-    const rowH = 33;
+    const top = THRESH.y + 22;
+    const rowH = 30;
     for (let i = 0; i < list.length; i += 1) {
       const g = list[i];
       const y = top + i * rowH;
@@ -649,7 +652,7 @@
       textFit(ctx, 'NO RUNS RECORDED YET - R STARTS YOUR FIRST', HISTORY.x + 14, HISTORY.y + HISTORY.h * 0.58, HISTORY.w - 28, 20, { align: 'left', fill: p.ink, minSize: 10 });
       return;
     }
-    const top = HISTORY.y + 28;
+    const top = HISTORY.y + 26;
     const rowH = 25;
     for (let i = 0; i < rows.length; i += 1) {
       const r = rows[i] || {};
@@ -845,16 +848,16 @@
     const again = button(ctx, RUN_AGAIN.x, RUN_AGAIN.y, RUN_AGAIN.w, RUN_AGAIN.h, '', { fill: p.coral, borderWidth: 4, r: 16 });
     again.id = 'runAgain';
     again.action = 'runAgain';
-    roundRect(ctx, RUN_AGAIN.x + 12, RUN_AGAIN.y + 11, 58, RUN_AGAIN.h - 22, 10, p.paper);
+    roundRect(ctx, RUN_AGAIN.x + 10, RUN_AGAIN.y + 7, 54, RUN_AGAIN.h - 14, 10, p.paper);
     ctx.lineWidth = 2.4;
     ctx.strokeStyle = p.ink;
-    roundRectPath(ctx, RUN_AGAIN.x + 12, RUN_AGAIN.y + 11, 58, RUN_AGAIN.h - 22, 10);
+    roundRectPath(ctx, RUN_AGAIN.x + 10, RUN_AGAIN.y + 7, 54, RUN_AGAIN.h - 14, 10);
     ctx.stroke();
-    textFit(ctx, 'R', RUN_AGAIN.x + 41, RUN_AGAIN.y + RUN_AGAIN.h * 0.5 + 1, 44, 26, { align: 'center', fill: p.ink, minSize: 12 });
-    textFit(ctx, 'RUN AGAIN', RUN_AGAIN.x + 86, RUN_AGAIN.y + RUN_AGAIN.h * 0.5 + 1, RUN_AGAIN.w - 104, 40, { align: 'left', fill: p.ink, minSize: 16 });
+    textFit(ctx, 'R', RUN_AGAIN.x + 37, RUN_AGAIN.y + RUN_AGAIN.h * 0.5 + 1, 44, 20, { align: 'center', fill: p.ink, minSize: 12 });
+    textFit(ctx, 'RUN AGAIN', RUN_AGAIN.x + 80, RUN_AGAIN.y + RUN_AGAIN.h * 0.5 + 1, RUN_AGAIN.w - 98, 27, { align: 'left', fill: p.ink, minSize: 16 });
     buttons.runAgain = again;
 
-    const title = button(ctx, TO_TITLE.x, TO_TITLE.y, TO_TITLE.w, TO_TITLE.h, 'T - TITLE', { fill: p.paper, size: 26, r: 14, borderWidth: 3 });
+    const title = button(ctx, TO_TITLE.x, TO_TITLE.y, TO_TITLE.w, TO_TITLE.h, 'T - TITLE', { fill: p.paper, size: 20, r: 14, borderWidth: 3 });
     title.id = 'toTitle';
     title.action = 'toTitle';
     buttons.toTitle = title;
@@ -864,13 +867,13 @@
 
   function footer(ctx) {
     const p = palette();
-    roundRect(ctx, 24, 738, 1232, 40, 10, rgba(p.cream, 0.96));
+    roundRect(ctx, 24, 758, 1232, 36, 10, rgba(p.cream, 0.96));
     ctx.lineWidth = 2.4;
     ctx.strokeStyle = rgba(p.ink, 0.5);
-    roundRectPath(ctx, 24, 738, 1232, 40, 10);
+    roundRectPath(ctx, 24, 758, 1232, 36, 10);
     ctx.stroke();
-    textFit(ctx, CONTROLS, 40, 758, 960, 17, { align: 'left', fill: p.ink, minSize: 9 });
-    textFit(ctx, 'PEGBLOOM - ' + (names().player || 'PINA'), 1240, 758, 260, 16, { align: 'right', fill: p.ink, minSize: 9 });
+    textFit(ctx, CONTROLS, 40, 776, 960, 15, { align: 'left', fill: p.ink, minSize: 9 });
+    textFit(ctx, 'PEGBLOOM - ' + (names().player || 'PINA'), 1240, 776, 260, 14, { align: 'right', fill: p.ink, minSize: 9 });
   }
 
   // ---------- public draw ----------
