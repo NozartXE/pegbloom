@@ -118,18 +118,36 @@
     return list;
   }
 
-  // Contraption bumpers: circles with a bounce boost, keyed by the socket's kind.
+  // Contraption bumpers: circles with a bounce boost, keyed by the socket's kind. Only sockets that
+  // carry a bumper radius (BLOOM BUMPER and its level) deflect; other builds leave the ball free.
   function gatherBumpers(sim, out) {
     const list = out || [];
     list.length = 0;
     const sockets = sim.sockets || [];
     for (let i = 0; i < sockets.length; i += 1) {
       const s = sockets[i];
-      if (!s || !s.kind) continue;
+      if (!s || !s.kind || !(fin(s.bumperR) > 0)) continue;
       const r = fin(s.bumperR) || 12;
-      list.push({ x: s.x, y: s.y, r: r, boost: fin(s.bumpBoost) || 1.25, source: s });
+      list.push({ x: s.x, y: s.y, r: r, boost: fin(s.bumpBoost) || 1.25, score: fin(s.score), source: s });
     }
     return list;
+  }
+
+  // The wind this tick: the shower's force everywhere except inside a FAN LEAF column band, which
+  // cancels it (contraptions.js publishes sim.fanBands with the band's half-width).
+  function windAt(sim, x) {
+    const wind = sim.wind || {};
+    let force = fin(wind.force);
+    if (!force) return 0;
+    const bands = sim.fanBands;
+    if (bands && bands.length) {
+      for (let i = 0; i < bands.length; i += 1) {
+        const b = bands[i];
+        if (!b || !(fin(b.force) !== 0)) continue;
+        if (Math.abs(x - fin(b.x)) <= num(b.half, 78)) return 0;
+      }
+    }
+    return force;
   }
 
   // Positional circle collision: push out along the contact normal and cancel only the
@@ -243,7 +261,9 @@
     for (let i = 0; i < cups.length; i += 1) {
       const c = cups[i];
       const ry = c.y;
-      const rad = c.w * 0.5;
+      // The rim dome reaches the widest the mouth can catch (cup width + WIDE CUPS pad), so the
+      // mouth widening widens the roll-in geometry instead of being swallowed by the dome.
+      const rad = c.w * 0.5 + wideCups(sim);
       if (ball.y > ry + 10 || ball.y < ry - rad - ball.r) continue;
       const dx = ball.x - c.x;
       if (Math.abs(dx) > rad + ball.r * 2) continue;
@@ -292,10 +312,17 @@
 
   // The cup mouth is an open mouth plus a narrowed closing funnel. The mouth's effective
   // half-width is cupWidth * cupOpenShare + funnel, so a swept x anywhere in it catches.
+  // The WIDE CUPS pad this shower's board carries (0 for a plain run).
+  function wideCups(sim) {
+    const cups = (sim && sim.cups) || null;
+    return cups && fin(cups.catchPad) > 0 ? fin(cups.catchPad) : 0;
+  }
+
   function mouthHalf(cup) {
     const phys = config().physics;
     const share = clamp(num(phys.cupOpenShare, 0.7), 0.1, 1);
-    return Math.max(cup.w * 0.5 * share, Math.min(cup.w * 0.5, cup.w * 0.5 * share + num(phys.cupFunnel, 6)));
+    const pad = Math.max(0, fin(cup.catchPad) || fin(config().cascade && config().cascade.catchPad));
+    return Math.max(cup.w * 0.5 * share, Math.min(cup.w * 0.5 + pad, cup.w * 0.5 * share + num(phys.cupFunnel, 6) + pad));
   }
 
   // Drain channels: the uncovered field width left and right of the centred cup row.
@@ -460,8 +487,13 @@
         const res = collidePeg(sim, ball, peg);
         if (res && res.impact > 0) {
           peg.hitFlash = Math.min(1, fin(peg.hitFlash) + 0.6);
-          if (peg.golden && globalThis.PB_Cascade) {
-            emit(sim, { type: 'golden', peg: peg, x: peg.x, y: peg.y, ball: ball });
+          if (peg.golden) {
+            // Golden pegs bounce brighter than the board's usual kiss.
+            ball.vx += res.nx * res.impact * 0.22;
+            ball.vy += res.ny * res.impact * 0.22;
+            if (globalThis.PB_Cascade) {
+              emit(sim, { type: 'golden', peg: peg, x: peg.x, y: peg.y, ball: ball });
+            }
           }
         }
       }
@@ -487,7 +519,7 @@
           const k = bump.boost;
           ball.vx += res.nx * res.impact * (k - 1);
           ball.vy += res.ny * res.impact * (k - 1);
-          emit(sim, { type: 'bumper', socket: bump.source, x: bump.x, y: bump.y, impact: res.impact, ball: ball });
+          emit(sim, { type: 'bumper', socket: bump.source, x: bump.x, y: bump.y, impact: res.impact, score: bump.score, ball: ball });
         }
       }
 
@@ -543,8 +575,6 @@
     const phys = config().physics;
     const f = board().field;
     const cupRowY = board().cupY;
-    const wind = sim.wind || {};
-    const windForce = fin(wind.force);
     const lifeTicks = maxLifeTicks();
     const cupCross = cupRowY + board().ballRadius * 0.5;
     let alive = 0;
@@ -567,7 +597,7 @@
       ball.py = ball.y;
 
       ball.vy += phys.gravity * dt;
-      ball.vx += windForce * dt;
+      ball.vx += windAt(sim, ball.x) * dt;
       ball.vx *= 1 - phys.friction * dt;
       ball.vy *= 1 - phys.friction * dt * 0.25;
 

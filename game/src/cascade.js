@@ -136,6 +136,11 @@
     let seeds = 1;
     if (sim.stats.quotaGot % 5 === 0) seeds += 2;
     addSeeds(sim, seeds);
+    const fan = num(adder(sim).seedFan, 0);
+    if (fan > 0 && sim.stats.blooms % 3 === 0) {
+      addSeeds(sim, fan);
+      fx(sim, { type: 'floater', x: cup.x, y: cup.y - 64, text: 'SEED FAN +' + fan + ' SEED', colour: 'gold' });
+    }
 
     fx(sim, {
       type: 'floater',
@@ -175,6 +180,10 @@
     sim.stats.drains += 1;
     sim.cascade.streak = 0;
     sim.cascade.mult = 1;
+    // SPRING PAD: the first drained ball of the shower relaunches from the pad instead of costing a drop.
+    if (globalThis.PB_Contraptions && typeof globalThis.PB_Contraptions.springSave === 'function') {
+      if (globalThis.PB_Contraptions.springSave(sim, ev)) return;
+    }
     const saves = num(adder(sim).straySavesPerBall, 0);
     if (saves > 0 && sim.stats.drains % saves === 0) {
       fx(sim, { type: 'floater', x: num(ev.x, 640), y: num(ev.y, 740) - 24, text: 'MOSS CUSHION SAVED A DROP', colour: 'leaf' });
@@ -189,7 +198,15 @@
     const peg = ev.peg || (sim.pegGrid && g_pegAt(sim, ev));
     if (peg && !peg.dead && !peg.lit) {
       peg.lit = 1;
-      awardScore(sim, 1);
+      awardScore(sim, peg.golden ? 3 : 1);
+      if (peg.golden) {
+        fx(sim, { type: 'floater', x: peg.x, y: peg.y - 22, text: '+3 GOLDEN', colour: 'gold' });
+        if (!sim.goldenShot) sim.goldenShot = 0;
+        if (sim.goldenShot++ % 2 === 0 && sim.cascade) {
+          sim.cascade.streak = num(sim.cascade.streak, 0) + 1;
+          setMult(sim, 1 + Math.floor(sim.cascade.streak / 3));
+        }
+      }
     }
   }
 

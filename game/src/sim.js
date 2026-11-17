@@ -150,19 +150,28 @@
     sim.stats = statsFor(row, sim.diff);
     sim.stats.shower = n;
     sim.scoreAtShower = sim.score;
-    sim.over = null;
+    // A closed shower's 'end' result must not outlive it: an open board is never "over".
+    if (sim.over && sim.over.result === 'end') sim.over = null;
     sim.showerResolved = false;
     sim.dropper = { x: c.board.field.x + c.board.field.w * 0.5, cooldown: 0 };
     sim.cascade = { streak: 0, mult: 1, lastCatchTick: 0 };
     applyWind(sim, row);
+    if (globalThis.PB_Contraptions && typeof globalThis.PB_Contraptions.resetForShower === 'function') globalThis.PB_Contraptions.resetForShower(sim);
+    if (globalThis.PB_Draft && typeof globalThis.PB_Draft.reapply === 'function') globalThis.PB_Draft.reapply(sim);
+    announceShower(sim, n, row);
+    buildRoster(sim);
+    return sim;
+  }
+
+  // The shower banner + first log lines. endBuild re-announces, because build phase already showed the forecast.
+  function announceShower(sim, n, row) {
+    const c = config();
     sim.banner = bannerFor(n, row);
     const goal = row.boss ? 'DUSKFATHER - DRIVE HIM OFF' : 'BLOOM ' + sim.stats.quota + ' CUPS';
     sim.log = [
       { text: 'SHOWER ' + n + ': ' + globalThis.PB_Gates.windFor(row.wind).name + ' - ' + goal, kind: 'shower', shower: n },
       { text: 'SUNWELL ' + sim.sunwell + ' / ' + c.sunwell.max + ' - ' + (row.pestBudget > 0 ? row.pestBudget + ' PESTS INBOUND' : 'CLEAR SKY'), kind: 'info', shower: n },
     ];
-    buildRoster(sim);
-    return sim;
   }
 
   function buildRoster(sim) {
@@ -254,6 +263,20 @@
 
     openShower(sim, 1);
     alignDropPoint(sim);
+    attachApi(sim);
+    return sim;
+  }
+
+  // The per-run helpers the economy files call on the state itself (place a token, upgrade, reroll).
+  function attachApi(sim) {
+    if (!sim) return sim;
+    sim.reserveContraption = reserveContraption;
+    sim.reserveUpgrade = reserveUpgrade;
+    sim.addToken = addToken;
+    sim.rerollDraft = rerollDraft;
+    sim.startBuild = startBuild;
+    sim.endBuild = endBuild;
+    sim.chooseDraft = chooseDraft;
     return sim;
   }
 
@@ -266,7 +289,10 @@
     if (!meta) return false;
     const sockets = sim.sockets || [];
     let socket = sockets[socketIdx] || null;
-    for (let i = 0; i < sockets.length && (!socket || socket.kind); i += 1) if (sockets[i].kind === kind) socket = sockets[i];
+    // Level up the same kind (asked slot, then any slot of that kind) or take the asked/first empty slot.
+    const contr = globalThis.PB_Contraptions;
+    if (contr && typeof contr.resolveSocket === 'function') socket = contr.resolveSocket(sim, socketIdx, kind);
+    else for (let i = 0; i < sockets.length && (!socket || socket.kind); i += 1) if (sockets[i].kind === kind) socket = sockets[i];
     if (!socket) return false;
     socket.kind = kind;
     socket.level = num(socket.level, 0) + 1;
@@ -275,7 +301,70 @@
     socket.bumperR = socket.level > 1 ? 15 : 12;
     socket.bumpBoost = 1.25 + 0.15 * (socket.level - 1) + (socket.side === 'mid' ? 0.1 : 0);
     socket.flash = 0;
+    // The buildable owns its per-level numbers (bumper radius/boost, tulip mouth, magnet pull, fan band).
+    if (contr && typeof contr.setSocket === 'function') contr.setSocket(socket, kind, socket.level);
     if (typeof sim.onContraption === 'function') sim.onContraption(sim, kind, socket);
+    return true;
+  }
+
+  // PB_Contraptions.place / upgrade spend seeds here, so the rack, sockets, builds and log all agree.
+  // Legal any time the run is live (draft and build phases, plus a draft token waited on), so a charm
+  // token is never stranded if the player ends the build without spending it.
+  function canBuild(sim) {
+    return !!sim && !sim.over && sim.phase !== 'lost' && sim.phase !== 'won' && sim.phase !== 'showerEnd';
+  }
+
+  function reserveContraption(sim, socketIdx, kind) {
+    if (!canBuild(sim)) return false;
+    const contr = globalThis.PB_Contraptions;
+    if (!contr || typeof contr.info !== 'function' || !contr.info(kind, 1)) return false;
+    const socket = contr.resolveSocket ? contr.resolveSocket(sim, socketIdx, kind) : null;
+    if (!socket) return false;
+    const lv = socket.kind === kind ? num(socket.level, 0) + 1 : 1;
+    const cost = num(contr.info(kind, lv).cost, 2);
+    if (num(sim.seeds, 0) < cost) return false;
+    if (!applyContraption(sim, socketIdx, kind)) return false;
+    if (!sim.owned) sim.owned = {};
+    if (!Array.isArray(sim.builds)) sim.builds = [];
+    sim.builds.push({ shower: sim.shower, socket: socket.index, kind: kind, cost: cost, level: lv });
+    sim.seeds -= cost;
+    if (num(sim.owned[kind], 0) > 0) sim.owned[kind] = num(sim.owned[kind], 0) - 1;
+    if (Array.isArray(sim.tokens)) {
+      const t = sim.tokens.indexOf(kind);
+      if (t >= 0) sim.tokens.splice(t, 1);
+    }
+    if (sim.draft && sim.draft.pending && sim.draft.pending.key === kind) sim.draft.pending = null;
+    if (globalThis.PB_Cascade && typeof globalThis.PB_Cascade.log === 'function') {
+      globalThis.PB_Cascade.log(sim, socket.name + ' ' + (lv > 1 ? 'LV' + lv : 'BUILT') + ' -' + cost + ' SEEDS', 'build');
+    }
+    return true;
+  }
+
+  // Upgrades an occupied socket one level (Lv2/Lv3) for the difference between level prices.
+  function reserveUpgrade(sim, socketIdx) {
+    if (!canBuild(sim)) return false;
+    const contr = globalThis.PB_Contraptions;
+    const socket = sim.sockets && sim.sockets[socketIdx];
+    if (!contr || !socket || !socket.kind) return false;
+    const lv = num(socket.level, 0);
+    if (lv < 1 || lv >= 3) return false;
+    const cost = num(contr.upgradeCost ? contr.upgradeCost(sim, socketIdx) : 2, 2);
+    if (num(sim.seeds, 0) < cost) return false;
+    sim.seeds -= cost;
+    socket.level = lv + 1;
+    contr.setSocket(socket, socket.kind, socket.level);
+    socket.flash = 0;
+    if (!Array.isArray(sim.builds)) sim.builds = [];
+    sim.builds.push({ shower: sim.shower, socket: socket.index, kind: socket.kind, cost: cost, upgrade: true });
+    return true;
+  }
+
+  function addToken(sim, key) {
+    if (!sim || !key) return false;
+    if (!sim.owned) sim.owned = {};
+    sim.owned[key] = num(sim.owned[key], 0) + 1;
+    if (!Array.isArray(sim.tokens)) sim.tokens = [];
+    sim.tokens.push(key);
     return true;
   }
 
@@ -376,6 +465,8 @@
     autoDrop(sim);
     if (globalThis.PB_Waves && typeof globalThis.PB_Waves.stepSpawns === 'function') globalThis.PB_Waves.stepSpawns(sim);
     if (globalThis.PB_Pests && typeof globalThis.PB_Pests.stepPests === 'function') globalThis.PB_Pests.stepPests(sim);
+    // Contraption effects physics cannot own: magnet pull, fan bands, the spring pad reset.
+    if (globalThis.PB_Contraptions && typeof globalThis.PB_Contraptions.stepEffects === 'function') globalThis.PB_Contraptions.stepEffects(sim);
     globalThis.PB_Physics.stepBalls(sim, 1 / sim.stepHz);
     if (sim.boss && globalThis.PB_Duskfather && typeof globalThis.PB_Duskfather.syncParts === 'function') globalThis.PB_Duskfather.syncParts(sim.boss);
     globalThis.PB_Cascade.consumeEvents(sim);
@@ -434,7 +525,7 @@
     }
     // The Sunwell bonus for a met shower is applied once, in resolveShower; here it is only capped.
     sim.sunwell = Math.min(maxSunwell, num(sim.sunwell, 0));
-    if (sim.sunwell >= maxSunwell && sim.feats) sim.feats.fullSunwell = next === showersTotal();
+    if (sim.sunwell >= maxSunwell && sim.feats) sim.feats.fullSunwell = next === showersTotal() + 1;
 
     if (next > showersTotal()) sim.endless = true;
 
@@ -572,10 +663,14 @@
     return true;
   }
 
+  // Closes the build phase into play. Also accepts the draft phase once a buildable token is waiting,
+  // and a shower already opened by chooseDraft, so a token is never stranded.
   function endBuild(sim) {
-    if (!sim || (sim.phase !== 'build' && sim.phase !== 'draft')) return false;
+    const pending = !!(sim && sim.draft && sim.draft.pending);
+    if (!sim || sim.over || (sim.phase !== 'build' && sim.phase !== 'draft' && !(pending && sim.phase === 'play'))) return false;
     sim.building = false;
     sim.phase = 'play';
+    announceShower(sim, sim.shower, sim.rows);
     return true;
   }
 
@@ -602,6 +697,9 @@
     applyContraption: applyContraption,
     startBuild: startBuild,
     endBuild: endBuild,
+    reserveContraption: reserveContraption,
+    reserveUpgrade: reserveUpgrade,
+    addToken: addToken,
     beginOverbloom: beginOverbloom,
     showerRow: showerRow,
     daysFor: daysFor,

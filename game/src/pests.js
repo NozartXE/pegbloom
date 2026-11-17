@@ -283,8 +283,9 @@
 
   function awardSeed(sim) {
     const adders = sim.adders || {};
-    if (num(adders.pestSeedEvery, 0) > 0) {
-      addSeeds(sim, 1);
+    const bonus = num(adders.pestSeedEvery, 0);
+    if (bonus > 0) {
+      addSeeds(sim, bonus);
       return true;
     }
     if (sim.endless) {
