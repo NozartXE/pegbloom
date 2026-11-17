@@ -241,6 +241,7 @@
       cascade: { streak: 0, mult: 1, lastCatchTick: 0 },
       adders: {},
       over: null,
+      failedShowers: [],
       showerResolved: false,
 
       shower: 1,
@@ -411,9 +412,32 @@
     return sim;
   }
 
+  // A missed quota costs 2 Sunwell and is recorded against the run; the run itself carries on.
+  function markShowerFailed(sim) {
+    if (!Array.isArray(sim.failedShowers)) sim.failedShowers = [];
+    sim.failedShowers.push({ shower: sim.shower, quotaGot: num(sim.stats && sim.stats.quotaGot, 0), quota: num(sim.stats && sim.stats.quota, 0) });
+  }
+
+  function hasFailedShower(sim) {
+    return Array.isArray(sim.failedShowers) && sim.failedShowers.length > 0;
+  }
+
+  // Shower 9 closed with the boss down but a shower missed earlier: a closed run, never a win.
+  function markBossBlocked(sim) {
+    sim.showerResolved = true;
+    sim.phase = 'showerEnd';
+    sim.over = { result: 'end', reason: 'showerFailed', shower: sim.shower };
+    sim.runEndTick = sim.tick;
+    if (globalThis.PB_Cascade && typeof globalThis.PB_Cascade.log === 'function') {
+      globalThis.PB_Cascade.log(sim, 'DUSKFATHER DRIVEN OFF - BUT A SHOWER WAS MISSED - RUN ENDS', 'drain');
+    }
+    return sim;
+  }
+
   // Close the shower once the budget is spent and no ball is live.
-  // Shower 9 is a boss goal: boss down = won; budget spent with a live boss = lost.
-  // Elsewhere: quota met = +1 Sunwell, quota missed = -2 Sunwell, and the run goes on while the Sunwell holds.
+  // Shower 9 is a boss goal: boss down (and no shower missed earlier) = won; otherwise the run ends.
+  // Elsewhere: quota met = +1 Sunwell, quota missed = -2 Sunwell and the shower is marked failed;
+  // the run goes on into the next draft while the Sunwell holds.
   function resolveShower(sim) {
     const s = sim.stats;
     const maxSunwell = num(config().sunwell && config().sunwell.max, 10);
@@ -422,8 +446,13 @@
       return sim;
     }
     if (sim.rows && sim.rows.boss) {
-      if (bossDown(sim)) {
+      if (bossDown(sim) && !hasFailedShower(sim)) {
         win(sim, 'boss');
+        return sim;
+      }
+      if (bossDown(sim)) {
+        // The moth fell, but a missed shower earlier still broke the bloom run.
+        markBossBlocked(sim);
         return sim;
       }
       lose(sim, 'boss', 'BALLS SPENT - THE DUSKFATHER STILL HOVERS - RUN LOST');
@@ -438,6 +467,7 @@
         globalThis.PB_Cascade.log(sim, 'QUOTA MET ' + s.quotaGot + '/' + quota + ' - SUNWELL +1 (' + sim.sunwell + '/' + maxSunwell + ')', 'win');
       }
     } else {
+      markShowerFailed(sim);
       sim.sunwell = Math.max(0, num(sim.sunwell, 0) - 2);
       if (globalThis.PB_Cascade && typeof globalThis.PB_Cascade.log === 'function') {
         globalThis.PB_Cascade.log(sim, 'QUOTA MISSED ' + s.quotaGot + '/' + quota + ' - SUNWELL -2 (' + sim.sunwell + '/' + maxSunwell + ')', 'drain');
@@ -528,7 +558,16 @@
     sim.sunwell = Math.min(maxSunwell, num(sim.sunwell, 0));
     if (sim.sunwell >= maxSunwell && sim.feats) sim.feats.fullSunwell = next === showersTotal() + 1;
 
-    if (next > showersTotal()) sim.endless = true;
+    if (next > showersTotal()) {
+      // Shower 9 closed with a missed shower on the record: the run ends rather than rolling into OVERBLOOM.
+      if (hasFailedShower(sim)) {
+        sim.over = { result: 'end', reason: 'showerFailed', shower: sim.shower };
+        sim.runEndTick = sim.tick;
+        sim.phase = 'showerEnd';
+        return sim;
+      }
+      sim.endless = true;
+    }
 
     const draftApi = globalThis.PB_Draft;
     if (draftApi && typeof draftApi.makeOffers === 'function') {
