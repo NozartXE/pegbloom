@@ -296,14 +296,19 @@
     }
     if (cupIndex < 0 || !cups[cupIndex]) {
       cupIndex = -1;
-      // Only reliable if the ball dropped past the row in one tick; otherwise aim at the nearest gap.
-      const feet = ball.y + ball.r * 0.5;
-      const hitX = ball.x - ball.vx * ((feet - prevY) / Math.max(1, ball.y - prevY));
+      // The ball crosses a cup mouth between prevY and y: use the swept x at the mouth height, shallowest first.
+      let bestY = -Infinity;
+      const pend = ball.y + ball.r;
+      const y0 = prevY + ball.r;
+      const denom = pend - y0;
       for (let i = 0; i < cups.length; i += 1) {
         const c = cups[i];
-        if (prevY <= c.y + 2 && feet >= c.y && hitX >= c.x - c.w * 0.5 && hitX <= c.x + c.w * 0.5) {
+        const mouth = c.y + 5;
+        if (mouth < y0 || mouth > pend) continue;
+        const hitX = ball.x - ball.vx * ((pend - mouth) / (denom > 0.001 ? denom : 0.001));
+        if (hitX >= c.x - c.w * 0.5 && hitX <= c.x + c.w * 0.5 && mouth > bestY) {
+          bestY = mouth;
           cupIndex = i;
-          break;
         }
       }
     }
