@@ -9,7 +9,7 @@
   // wordmark cap: the heading fits both the width and a 150 px-tall band inside y 30..195
   const WORD_MARK = { x: 30, y: 30, w: 1220, h: 150 };
   const WORD_HI = Math.round(WORD_MARK.h * 0.85);
-  const TAG_Y = 168;
+  const TAG_Y = 150;
   const PLAY = { x: 640, y: 236, w: 300, h: 52 };
   const DIFF = { x: 640, y: 298, w: 300, h: 40 };
   const BEST = { x: 640, y: 346, w: 300, h: 32 };
@@ -327,7 +327,10 @@
       if (name === key) buttons.difficulty = hit;
       buttons['difficulty_' + name] = hit;
     }
-    textFit(ctx, diffCaption(key), W * 0.5, DIFF.y + DIFF.h + 18, W * 0.5, 15, { align: 'center', fill: q.ink, minSize: 9 });
+    // The caption used to sit centred on the whole canvas at DIFF bottom + 18,
+    // where the rules panel and the BEST pill swallowed its ends. It now lives
+    // under the right-hand menu column, on open board, fully readable.
+    textFit(ctx, diffCaption(key), OVER.x + OVER.w * 0.5, MENU.y + MENU.h + 28, OVER.w - 10, 15, { align: 'center', fill: q.ink, minSize: 9 });
   }
 
   function rulesPanel(ctx) {
@@ -538,28 +541,30 @@
   function characterPlates(ctx) {
     const q = p();
     // PINA plate sits under the rules panel; the Duskfather plate beside it.
-    const pinaBox = { x: NEWBEST.x, y: NEWBEST.y + NEWBEST.h + 14, w: 250, h: 126 };
+    // The pair used to hang off the canvas bottom (anchored under NEWBEST at
+    // y 712 + 126 tall); they now sit fully on-canvas above the footer strip.
+    const pinaBox = { x: NEWBEST.x, y: 634, w: 250, h: 104 };
     const bossBox = { x: pinaBox.x + pinaBox.w + 14, y: pinaBox.y, w: NEWBEST.w - pinaBox.w - 14, h: pinaBox.h };
     roundRect(ctx, pinaBox.x, pinaBox.y, pinaBox.w, pinaBox.h, 14, mix(q.paper, q.mint, 0.18));
     ctx.lineWidth = 2.6;
     ctx.strokeStyle = q.ink;
     howto().roundRectPath(ctx, pinaBox.x, pinaBox.y, pinaBox.w, pinaBox.h, 14);
     ctx.stroke();
-    pina(ctx, pinaBox.x + 52, pinaBox.y + 58, 0.5);
-    textFit(ctx, 'PINA', pinaBox.x + 104, pinaBox.y + 38, pinaBox.w - 112, 24, { align: 'left', fill: q.ink, minSize: 11 });
-    textFit(ctx, 'KEEPER OF THE BLOOM ENGINE', pinaBox.x + 104, pinaBox.y + 62, pinaBox.w - 112, 14, { align: 'left', fill: q.ink, minSize: 8 });
-    textFit(ctx, 'STEERS THE CAN, TURNS THE GATES', pinaBox.x + 104, pinaBox.y + 84, pinaBox.w - 112, 13, { align: 'left', fill: rgba(q.ink, 0.72), minSize: 8 });
-    textFit(ctx, 'DOWN THE CASCADE', pinaBox.x + 104, pinaBox.y + 102, pinaBox.w - 112, 13, { align: 'left', fill: rgba(q.ink, 0.72), minSize: 8 });
+    pina(ctx, pinaBox.x + 52, pinaBox.y + 50, 0.44);
+    textFit(ctx, 'PINA', pinaBox.x + 104, pinaBox.y + 34, pinaBox.w - 112, 24, { align: 'left', fill: q.ink, minSize: 11 });
+    textFit(ctx, 'KEEPER OF THE BLOOM ENGINE', pinaBox.x + 104, pinaBox.y + 56, pinaBox.w - 112, 14, { align: 'left', fill: q.ink, minSize: 8 });
+    textFit(ctx, 'STEERS THE CAN, TURNS THE GATES', pinaBox.x + 104, pinaBox.y + 76, pinaBox.w - 112, 13, { align: 'left', fill: rgba(q.ink, 0.72), minSize: 8 });
+    textFit(ctx, 'DOWN THE CASCADE', pinaBox.x + 104, pinaBox.y + 94, pinaBox.w - 112, 13, { align: 'left', fill: rgba(q.ink, 0.72), minSize: 8 });
     roundRect(ctx, bossBox.x, bossBox.y, bossBox.w, bossBox.h, 14, mix(q.paper, q.coral, 0.16));
     ctx.lineWidth = 2.6;
     ctx.strokeStyle = q.ink;
     howto().roundRectPath(ctx, bossBox.x, bossBox.y, bossBox.w, bossBox.h, 14);
     ctx.stroke();
-    duskfather(ctx, bossBox.x + 52, bossBox.y + 56, 0.4);
-    textFit(ctx, 'THE DUSKFATHER', bossBox.x + 108, bossBox.y + 34, bossBox.w - 116, 21, { align: 'left', fill: q.ink, minSize: 10 });
-    textFit(ctx, 'GIANT MOTH - 24 HP - SHOWER 9', bossBox.x + 108, bossBox.y + 58, bossBox.w - 116, 13, { align: 'left', fill: q.ink, minSize: 8 });
-    textFit(ctx, 'STEALS THE PEBBOARD - TRAP HIM', bossBox.x + 108, bossBox.y + 80, bossBox.w - 116, 13, { align: 'left', fill: rgba(q.ink, 0.72), minSize: 8 });
-    textFit(ctx, 'TO WIN: GET HIM TO 0 HP', bossBox.x + 108, bossBox.y + 100, bossBox.w - 116, 13, { align: 'left', fill: rgba(q.ink, 0.72), minSize: 8 });
+    duskfather(ctx, bossBox.x + 52, bossBox.y + 50, 0.36);
+    textFit(ctx, 'THE DUSKFATHER', bossBox.x + 108, bossBox.y + 32, bossBox.w - 116, 21, { align: 'left', fill: q.ink, minSize: 10 });
+    textFit(ctx, 'GIANT MOTH - 24 HP - SHOWER 9', bossBox.x + 108, bossBox.y + 54, bossBox.w - 116, 13, { align: 'left', fill: q.ink, minSize: 8 });
+    textFit(ctx, 'STEALS THE PEBBOARD - TRAP HIM', bossBox.x + 108, bossBox.y + 74, bossBox.w - 116, 13, { align: 'left', fill: rgba(q.ink, 0.72), minSize: 8 });
+    textFit(ctx, 'TO WIN: GET HIM TO 0 HP', bossBox.x + 108, bossBox.y + 92, bossBox.w - 116, 13, { align: 'left', fill: rgba(q.ink, 0.72), minSize: 8 });
   }
 
   function clipRect(ctx, x, y, w, h) {
