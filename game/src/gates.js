@@ -2,8 +2,8 @@
 (function () {
   if (typeof globalThis.PB_Gates === 'object' && globalThis.PB_Gates !== null) return;
 
-  const GATE_MIN = -Math.PI / 3;
-  const GATE_MAX = Math.PI / 3;
+  const GATE_MIN = Math.PI / 2 - Math.PI / 3;
+  const GATE_MAX = Math.PI / 2 + Math.PI / 3;
   const GATE_STEP = Math.PI / 12;
   const GATE_LEN = (globalThis.PB_CONFIG && globalThis.PB_CONFIG.board && globalThis.PB_CONFIG.board.gateLength) || 120;
   const EASE_RATE = 0.16;
@@ -35,7 +35,9 @@
   function makeGates(c) {
     const positions = gatePositions(c || config());
     return positions.map(function (p) {
-      return { x: p.x, y: p.y, angle: 0, target: 0, len: (c || config()).board.gateLength || GATE_LEN, side: p.side, on: true };
+      // Petals rest flat, i.e. aimed horizontally across the field, so an un-aimed shower
+      // still lets the cascade reach the cup row; players tilt them to steer.
+      return { x: p.x, y: p.y, angle: Math.PI * 0.5, target: Math.PI * 0.5, len: (c || config()).board.gateLength || GATE_LEN, side: p.side, on: true };
     });
   }
 

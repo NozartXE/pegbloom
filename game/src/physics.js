@@ -3,11 +3,11 @@
   if (typeof globalThis.PB_Physics === 'object' && globalThis.PB_Physics !== null) return;
 
   const TRAIL_MAX = 10;
-  const PEG_SUB_CAP = 3;
-  const TANGENT_JITTER = 0.18;
   const GATE_THICKNESS = 6;
   const GATE_MAX_BOUNCE = 1.15;
-  const REST_CLIMB = 0.6;
+  const PEG_ANGLE_STEPS = 16;
+  const PEST_RESTITUTION = 0.45;
+  const SUBSTEP_TRACE = [];
 
   function config() {
     const c = globalThis.PB_CONFIG;
@@ -21,6 +21,10 @@
 
   function fin(v) {
     return typeof v === 'number' && isFinite(v) ? v : 0;
+  }
+
+  function num(v, d) {
+    return typeof v === 'number' && isFinite(v) ? v : d;
   }
 
   function clamp(v, lo, hi) {
@@ -45,6 +49,9 @@
       bounceSaves: 0,
       age: 0,
       hits: 0,
+      stillTicks: 0,
+      px: fin(x),
+      py: fin(y),
     };
   }
 
@@ -70,7 +77,18 @@
   }
 
   function jitter(sim, amount) {
+    if (!(amount > 0)) return 0;
     return (rand(sim) * 2 - 1) * amount;
+  }
+
+  // A deterministic pseudo-random sign from the ball's own identity, so a pinned ball always
+  // breaks the same way on the same seed without needing an RNG draw every substep.
+  function ballSign(sim, ball, salt) {
+    const a = Math.round(fin(ball.dropperX) * 7);
+    const b = (fin(ball.age) * 60) | 0;
+    const x = (a * 73856093) ^ (b * 19349663) ^ (salt | 0) ^ (sim.tick | 0);
+    const v = Math.sin(x * 0.0001 + 1.7) * 43758.5;
+    return v - Math.floor(v) < 0.5 ? -1 : 1;
   }
 
   // Circles the ball can hit as obstacles: pests and the boss, flattened into a stable list.
@@ -81,14 +99,18 @@
     if (pests && pests.length) {
       for (let i = 0; i < pests.length; i += 1) {
         const p = pests[i];
-        if (p && p.alive !== false && p.active !== false && fin(p.r) > 0) list.push(p);
+        if (p && p.alive !== false && p.active !== false && fin(p.r) > 0) {
+          if (list.indexOf(p) < 0) list.push(p);
+        }
       }
     }
     const boss = sim.boss;
     if (boss && boss.alive !== false && boss.defeated !== true) {
       const parts = boss.parts || boss.hitCircles;
       if (parts && parts.length) {
-        for (let i = 0; i < parts.length; i += 1) list.push(parts[i]);
+        for (let i = 0; i < parts.length; i += 1) {
+          if (parts[i] && list.indexOf(parts[i]) < 0) list.push(parts[i]);
+        }
       } else if (fin(boss.r) > 0) {
         list.push(boss);
       }
@@ -110,7 +132,9 @@
     return list;
   }
 
-  function collideCircle(ball, cx, cy, cr, restitution, jitterAmount, sim) {
+  // Positional circle collision: push out along the contact normal and cancel only the
+  // into-surface velocity (one reflection), so a repeated contact can never add energy.
+  function collideCircle(ball, cx, cy, cr, restitution, spinAmount, sim) {
     const dx = ball.x - cx;
     const dy = ball.y - cy;
     const rr = ball.r + cr;
@@ -121,7 +145,7 @@
     let ny;
     if (d < 0.0001) {
       nx = 0;
-      ny = 1;
+      ny = -1;
       d = 0.0001;
     } else {
       nx = dx / d;
@@ -130,113 +154,188 @@
     ball.x = cx + nx * rr;
     ball.y = cy + ny * rr;
     const vn = ball.vx * nx + ball.vy * ny;
-    const at = d < rr ? 1 - d / rr : 0;
-    const spin = jitter(sim, TANGENT_JITTER * at);
-    const tx = -ny;
-    const ty = nx;
+    const impact = vn < 0 ? -vn : 0;
     if (vn < 0) {
       ball.vx -= (1 + restitution) * vn * nx;
       ball.vy -= (1 + restitution) * vn * ny;
-      ball.vx += tx * spin;
-      ball.vy += ty * spin;
-      return { nx: nx, ny: ny, impact: -vn, vn: vn };
+      if (spinAmount) {
+        ball.vx += -ny * spinAmount;
+        ball.vy += nx * spinAmount;
+      }
     }
-    if (spin !== 0) {
-      ball.vx += tx * spin;
-      ball.vy += ty * spin;
-      return { nx: nx, ny: ny, impact: 0, vn: vn };
-    }
-    return { nx: nx, ny: ny, impact: 0, vn: vn };
+    return { nx: nx, ny: ny, impact: impact, vn: vn };
   }
 
-  // Moves the ball forward (swept, axis-separated) and resolves whatever it touches.
-  function collideWorld(sim, ball, dt, pegs, bumpers, obstacles) {
+  // Top edge of the field: open through the dropper rail, a wall beyond it.
+  function topIsOpen(x) {
+    const rail = board().dropperRail;
+    const pad = board().ballRadius * 2;
+    return x > rail.x + pad && x < rail.x + rail.w - pad;
+  }
+
+  // Static side and top walls. Balls enter below the rail, so the open lane never clamps them.
+  function clampWalls(sim, ball) {
     const phys = config().physics;
     const f = board().field;
-    const speed = Math.hypot(ball.vx, ball.vy);
-    const substeps = Math.min(phys.maxSubSteps, Math.max(1, Math.ceil((speed * dt) / Math.max(1, ball.r))));
-    const h = dt / substeps;
-    const cx0 = Math.max(f.x - 26, 0);
-
-    for (let s = 0; s < substeps; s += 1) {
-      const speedNow = Math.hypot(ball.vx, ball.vy);
-        ball.x += ball.vx * h;
-      ball.y += Math.max(ball.vy * h, -REST_CLIMB);
-
-      if (ball.x - ball.r < f.x) {
-        ball.x = f.x + ball.r;
-        if (ball.vx < 0) ball.vx = -ball.vx * phys.wallRestitution;
-        emit(sim, { type: 'wall', side: 'left', ball: ball });
-      } else if (ball.x + ball.r > f.x + f.w) {
-        ball.x = f.x + f.w - ball.r;
-        if (ball.vx > 0) ball.vx = -ball.vx * phys.wallRestitution;
-        emit(sim, { type: 'wall', side: 'right', ball: ball });
-      }
-      if (ball.x > cx0 - 20 && ball.y - ball.r < f.y) {
-        ball.y = f.y + ball.r;
-        if (ball.vy < 0) ball.vy = -ball.vy * phys.wallRestitution;
-        emit(sim, { type: 'wall', side: 'top', ball: ball });
-      }
-
-      const reach = ball.r * 2 + speedNow * h;
-      const nearPegs = globalThis.PB_Pegboard.nearestPegs(sim.pegGrid, ball.x, ball.y, ball.r, reach);
-      for (let i = 0; i < nearPegs.length; i += 1) {
-        const peg = nearPegs[i];
-        if (peg.dead) continue;
-        const res = collideCircle(ball, peg.x, peg.y, peg.r, phys.restitution, TANGENT_JITTER * 0.5, sim);
-        if (res && res.impact > 0) {
-          peg.hitFlash = Math.min(1, fin(peg.hitFlash) + 0.6);
-          emit(sim, { type: 'peg', peg: peg, x: peg.x, y: peg.y, impact: res.impact, vn: res.vn, ball: ball });
-        }
-      }
-
-      // Cup divider posts: static, never lit, never scored - they only turn rim bounces into drains.
-      const rim = sim.rimPegs;
-      if (rim && rim.length) {
-        for (let i = 0; i < rim.length; i += 1) {
-          const post = rim[i];
-          const py = post.y - ball.y;
-          const px = post.x - ball.x;
-          const pr = ball.r + post.r;
-          if (px * px + py * py > (pr + reach) * (pr + reach)) continue;
-          const res = collideCircle(ball, post.x, post.y, post.r, phys.wallRestitution, TANGENT_JITTER * 0.5, sim);
-          if (res && res.impact > 0) emit(sim, { type: 'rim', x: post.x, y: post.y, impact: res.impact, ball: ball });
-        }
-      }
-
-      for (let i = 0; i < bumpers.length; i += 1) {
-        const bump = bumpers[i];
-        const res = collideCircle(ball, bump.x, bump.y, bump.r, phys.restitution, TANGENT_JITTER * 0.5, sim);
-        if (res && res.impact > 0) {
-          const k = bump.boost;
-          ball.vx += res.nx * res.impact * (k - 1);
-          ball.vy += res.ny * res.impact * (k - 1);
-          emit(sim, { type: 'bumper', socket: bump.source, x: bump.x, y: bump.y, impact: res.impact, ball: ball });
-        }
-      }
-
-      for (let i = 0; i < obstacles.length; i += 1) {
-        const ob = obstacles[i];
-        const res = collideCircle(ball, ob.x, ob.y, ob.r, 0.45, TANGENT_JITTER, sim);
-        if (res && res.impact > 0) {
-          emit(sim, {
-            type: ob.isBoss || ob.kind === 'boss' ? 'bossHit' : 'pestHit',
-            pest: ob.source || ob,
-            hp: ob.hp,
-            x: ob.x,
-            y: ob.y,
-            impact: res.impact,
-            ball: ball,
-          });
-        }
-      }
-
+    let hit = false;
+    if (ball.x - ball.r < f.x) {
+      ball.x = f.x + ball.r;
+      if (ball.vx < 0) ball.vx = -ball.vx * phys.wallRestitution;
+      emit(sim, { type: 'wall', side: 'left', ball: ball });
+      hit = true;
+    } else if (ball.x + ball.r > f.x + f.w) {
+      ball.x = f.x + f.w - ball.r;
+      if (ball.vx > 0) ball.vx = -ball.vx * phys.wallRestitution;
+      emit(sim, { type: 'wall', side: 'right', ball: ball });
+      hit = true;
     }
-
-    collideGates(sim, ball);
+    if (ball.y - ball.r < f.y && !topIsOpen(ball.x)) {
+      ball.y = f.y + ball.r;
+      if (ball.vy < 0) ball.vy = -ball.vy * phys.wallRestitution;
+      emit(sim, { type: 'wall', side: 'top', ball: ball });
+      hit = true;
+    }
+    return hit;
   }
 
-  // Petal gates are rotating line-segment deflectors; reflect the ball off whichever face it crossed.
+  // Peg contact test that knows about rest: on a near-zero vertical contact, add the seeded
+  // tangential jitter plus a constant downhill bias so no ball balances on a peg top.
+  function collidePeg(sim, ball, peg) {
+    const phys = config().physics;
+    const dx = ball.x - peg.x;
+    const dy = ball.y - peg.y;
+    const rr = ball.r + peg.r;
+    const d2 = dx * dx + dy * dy;
+    if (d2 >= rr * rr) return null;
+    let d = Math.sqrt(d2);
+    if (d < 0.0001) {
+      d = 0.0001;
+      ball.x = peg.x;
+    }
+    const nx = (ball.x - peg.x) / d;
+    const ny = (ball.y - peg.y) / d;
+    ball.x = peg.x + nx * rr;
+    ball.y = peg.y + ny * rr;
+    const vn = ball.vx * nx + ball.vy * ny;
+    const impact = vn < 0 ? -vn : 0;
+    if (vn < 0) {
+      ball.vx -= (1 + phys.restitution) * vn * nx;
+      ball.vy -= (1 + phys.restitution) * vn * ny;
+      emit(sim, { type: 'peg', peg: peg, x: peg.x, y: peg.y, impact: impact, vn: vn, ball: ball });
+    }
+    const speed = Math.hypot(ball.vx, ball.vy);
+    if (speed < num(phys.pegPauseSpeed, 90) && ny < 0) {
+      const spin = jitter(sim, 0.4);
+      const bias = ballSign(sim, ball, peg.index + 13) * num(phys.pegBias, 55);
+      ball.vx += -ny * spin + bias;
+      ball.vy += nx * spin;
+      ball.settleTicks = num(ball.settleTicks, 0) + 1;
+    }
+    return { nx: nx, ny: ny, impact: impact, vn: vn };
+  }
+
+  // Cup domes: a ball moving downward and outward over a cup rim rolls into the cup
+  // instead of being catapulted sideways, so near-misses become catches, not drains.
+  function collideCupRim(sim, ball) {
+    if (fin(ball.vy) < 0) return;
+    const cups = sim.cups || [];
+    const phys = config().physics;
+    for (let i = 0; i < cups.length; i += 1) {
+      const c = cups[i];
+      const ry = c.y;
+      const rad = c.w * 0.5;
+      if (ball.y > ry + 10 || ball.y < ry - rad - ball.r) continue;
+      const dx = ball.x - c.x;
+      if (Math.abs(dx) > rad + ball.r * 2) continue;
+      const dy = ball.y - ry;
+      if (dy <= 0) continue;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d > rad + ball.r || d < 0.0001) continue;
+      const nx = dx / d;
+      const ny = dy / d;
+      if (ny < -0.25) continue;
+      const away = dx >= 0 ? 1 : -1;
+      const yClip = ry + Math.min(rad - ball.r * 0.5, rimDepth(phys, c));
+      ball.y = Math.min(ball.y, yClip);
+      const drift = -away * num(phys.cupRimRoll, 60);
+      ball.vx = ball.vx * 0.3 + drift;
+      ball.vy = Math.min(ball.vy, num(phys.cupRimDrop, 420));
+      ball.rimRolls = num(ball.rimRolls, 0) + 1;
+      ball.x = clamp(ball.x, c.x - rad + ball.r * 0.35, c.x + rad - ball.r * 0.35);
+      emit(sim, { type: 'cupRim', cup: c, x: ball.x, y: ry, ball: ball });
+      if (ball.rimRolls >= num(phys.maxCupRimRolls, 4)) resolveCup(sim, ball, i);
+      return;
+    }
+  }
+
+  function rimDepth(phys, cup) {
+    return Math.min(num(phys.cupRimDepth, 8), cup.h * 0.25);
+  }
+
+  // Commits the ball to a cup: scoring happens in cascade.js from the emitted event.
+  function resolveCup(sim, ball, cupIndex) {
+    const cups = sim.cups || [];
+    const f = board().field;
+    ball.x = cups[cupIndex] ? cups[cupIndex].x : ball.x;
+    ball.alive = false;
+    emit(sim, {
+      type: 'cup',
+      cup: cups[cupIndex],
+      cupIndex: cupIndex,
+      value: cups[cupIndex] ? cups[cupIndex].value : 0,
+      valueMul: fin(ball.valueMul) || 1,
+      x: ball.x,
+      y: f.y + f.h,
+      ball: ball,
+    });
+  }
+
+  // The cup mouth is an open mouth plus a narrowed closing funnel. The mouth's effective
+  // half-width is cupWidth * cupOpenShare + funnel, so a swept x anywhere in it catches.
+  function mouthHalf(cup) {
+    const phys = config().physics;
+    const share = clamp(num(phys.cupOpenShare, 0.7), 0.1, 1);
+    return Math.max(cup.w * 0.5 * share, Math.min(cup.w * 0.5, cup.w * 0.5 * share + num(phys.cupFunnel, 6)));
+  }
+
+  // Cup row crossing: pick the cup whose mouth is under the ball, else it drains between cups.
+  function resolveCupRow(sim, ball, prevY) {
+    const f = board().field;
+    const cups = sim.cups || [];
+    let cupIndex = -1;
+    if (ball.captured && typeof ball.laneCup === 'number' && cups[ball.laneCup]) {
+      cupIndex = ball.laneCup;
+    }
+    if (cupIndex < 0) {
+      const phys = config().physics;
+      const y = clamp(fin(ball.y), num(phys.cupMinY, board().cupY - 26), f.y + f.h);
+      const x = fin(ball.x);
+      for (let i = 0; i < cups.length; i += 1) {
+        const c = cups[i];
+        if (x >= c.x - mouthHalf(c) - ball.r * 0.5 && x <= c.x + mouthHalf(c) + ball.r * 0.5) {
+          cupIndex = i;
+          break;
+        }
+      }
+    }
+    if (cupIndex >= 0) {
+      resolveCup(sim, ball, cupIndex);
+      return;
+    }
+    ball.alive = false;
+    emit(sim, { type: 'drain', x: ball.x, y: f.y + f.h, ball: ball });
+  }
+
+  // A ball past its max life becomes a faint straight fall: no pegs, no walls, just a drain.
+  function resolveFaded(sim, ball, prevY) {
+    const f = board().field;
+    ball.alive = false;
+    ball.faded = true;
+    emit(sim, { type: 'faded', x: ball.x, y: prevY, ball: ball });
+    emit(sim, { type: 'drain', x: ball.x, y: f.y + f.h, ball: ball, faded: true });
+  }
+
+  // Petal gates are rotating line-segment deflectors; push out and reflect only the into-face velocity.
   function collideGates(sim, ball) {
     const gates = sim.gates;
     if (!gates || !gates.length) return;
@@ -244,8 +343,7 @@
     for (let i = 0; i < gates.length; i += 1) {
       const g = gates[i];
       if (!g || g.on === false) continue;
-      const len = fin(g.len) || 96;
-      const half = len * 0.5;
+      const half = (fin(g.len) || 96) * 0.5;
       const cos = Math.cos(fin(g.angle));
       const sin = Math.sin(fin(g.angle));
       const dx = ball.x - g.x;
@@ -256,22 +354,19 @@
       const limit = ball.r + GATE_THICKNESS * 0.5;
       if (perp > limit || perp < -limit) continue;
       const sign = perp > 0 ? 1 : -1;
-      let nx = -sin * sign;
-      let ny = cos * sign;
+      const nx = -sin * sign;
+      const ny = cos * sign;
       ball.x = g.x + cos * along + nx * limit;
       ball.y = g.y + sin * along + ny * limit;
       const vn = ball.vx * nx + ball.vy * ny;
-      const spin = jitter(sim, TANGENT_JITTER * 0.3);
       if (vn < 0) {
         const e = Math.min(GATE_MAX_BOUNCE, phys.restitution + 0.2);
         ball.vx -= (1 + e) * vn * nx;
         ball.vy -= (1 + e) * vn * ny;
+        const spin = jitter(sim, 30);
         ball.vx += -ny * spin;
         ball.vy += nx * spin;
         emit(sim, { type: 'gate', gate: g, index: i, normal: { x: nx, y: ny }, impact: -vn, ball: ball });
-      } else if (spin !== 0) {
-        ball.vx += -ny * spin;
-        ball.vy += nx * spin;
       }
     }
   }
@@ -289,69 +384,113 @@
       if (ball.y < t.y - h * 0.5 || ball.y > t.y + h * 0.5) continue;
       if (t.oneShot !== false) t.used = true;
       ball.captured = true;
-      if (typeof t.cup === 'number') {
-        ball.laneCup = t.cup;
-      } else {
-        ball.laneCup = sim.cups && sim.cups.length ? globalThis.PB_Pegboard.cupAt(sim.cups, t.x) : -1;
-      }
+      if (typeof t.cup === 'number') ball.laneCup = t.cup;
+      else ball.laneCup = sim.cups && sim.cups.length ? globalThis.PB_Pegboard.cupAt(sim.cups, t.x) : -1;
       emit(sim, { type: 'tulip', tulip: t, index: i, cup: ball.laneCup, x: t.x, y: t.y, ball: ball });
       return true;
     }
     return false;
   }
 
-  // Cup row crossing: pick the cup whose mouth is under the ball, else it drains between cups.
-  function resolveCupRow(sim, ball, prevY) {
+  // Moves the ball forward (swept, axis-separated) and resolves whatever it touches.
+  function collideWorld(sim, ball, dt, pegs, bumpers, obstacles) {
+    const phys = config().physics;
     const f = board().field;
-    const cups = sim.cups || [];
-    let cupIndex = -1;
-    if (ball.captured && typeof ball.laneCup === 'number') {
-      cupIndex = ball.laneCup;
-    }
-    if (cupIndex < 0 || !cups[cupIndex]) {
-      cupIndex = -1;
-      // The ball crosses a cup mouth between prevY and y: use the swept x at the mouth height, shallowest first.
-      let bestY = -Infinity;
-      const pend = ball.y + ball.r;
-      const y0 = prevY + ball.r;
-      const denom = pend - y0;
-      for (let i = 0; i < cups.length; i += 1) {
-        const c = cups[i];
-        const mouth = c.y + 5;
-        if (mouth < y0 || mouth > pend) continue;
-        const hitX = ball.x - ball.vx * ((pend - mouth) / (denom > 0.001 ? denom : 0.001));
-        if (hitX >= c.x - c.w * 0.5 && hitX <= c.x + c.w * 0.5 && mouth > bestY) {
-          bestY = mouth;
-          cupIndex = i;
+    const speed = Math.hypot(ball.vx, ball.vy);
+    const substeps = Math.min(phys.maxSubSteps, Math.max(1, Math.ceil((speed * dt) / Math.max(1, ball.r))));
+    const h = dt / substeps;
+
+    for (let s = 0; s < substeps; s += 1) {
+      ball.x += ball.vx * h;
+      ball.y += ball.vy * h;
+      clampWalls(sim, ball);
+
+      const reach = ball.r * 2 + speed * h;
+      const nearPegs = globalThis.PB_Pegboard.nearestPegs(sim.pegGrid, ball.x, ball.y, ball.r, reach);
+      for (let i = 0; i < nearPegs.length; i += 1) {
+        const peg = nearPegs[i];
+        if (peg.dead) continue;
+        const res = collidePeg(sim, ball, peg);
+        if (res && res.impact > 0) {
+          peg.hitFlash = Math.min(1, fin(peg.hitFlash) + 0.6);
+          if (peg.golden && globalThis.PB_Cascade) {
+            emit(sim, { type: 'golden', peg: peg, x: peg.x, y: peg.y, ball: ball });
+          }
         }
       }
+
+      // Cup divider posts are blunt: low restitution so they nudge instead of firing balls sideways.
+      const rim = sim.rimPegs;
+      if (rim && rim.length) {
+        for (let i = 0; i < rim.length; i += 1) {
+          const post = rim[i];
+          const px = post.x - ball.x;
+          const py = post.y - ball.y;
+          const pr = ball.r + post.r;
+          if (px * px + py * py > (pr + reach) * (pr + reach)) continue;
+          const res = collideCircle(ball, post.x, post.y, post.r, num(phys.rimRestitution, 0.15), 0, sim);
+          if (res && res.impact > 0) emit(sim, { type: 'rim', x: post.x, y: post.y, impact: res.impact, ball: ball });
+        }
+      }
+
+      for (let i = 0; i < bumpers.length; i += 1) {
+        const bump = bumpers[i];
+        const res = collideCircle(ball, bump.x, bump.y, bump.r, phys.restitution, jitter(sim, 8), sim);
+        if (res && res.impact > 0) {
+          const k = bump.boost;
+          ball.vx += res.nx * res.impact * (k - 1);
+          ball.vy += res.ny * res.impact * (k - 1);
+          emit(sim, { type: 'bumper', socket: bump.source, x: bump.x, y: bump.y, impact: res.impact, ball: ball });
+        }
+      }
+
+      for (let i = 0; i < obstacles.length; i += 1) {
+        const ob = obstacles[i];
+        const res = collideCircle(ball, ob.x, ob.y, ob.r, PEST_RESTITUTION, jitter(sim, 8), sim);
+        if (res && res.impact > 0) {
+          emit(sim, {
+            type: ob.isBoss || ob.kind === 'boss' ? 'bossHit' : 'pestHit',
+            pest: ob.source || ob,
+            hp: ob.hp,
+            x: ob.x,
+            y: ob.y,
+            impact: res.impact,
+            ball: ball,
+          });
+        }
+      }
+
+      // A ball stalled under the calm threshold for too long gets one deterministic downward nudge.
+      const still = Math.hypot(ball.vx, ball.vy) < num(phys.stallSpeed, 26);
+      if (still) {
+        ball.stillTicks = num(ball.stillTicks, 0) + 1;
+        if (ball.stillTicks >= num(phys.stallTicks, 90)) {
+          const side = ballSign(sim, ball, 29);
+          ball.vy += num(phys.stallNudge, 140);
+          ball.vx += side * num(phys.stallNudge, 140) * 0.35;
+          ball.stillTicks = 0;
+          emit(sim, { type: 'nudge', x: ball.x, y: ball.y, ball: ball });
+        }
+      } else {
+        ball.stillTicks = 0;
+      }
     }
-    ball.alive = false;
-    if (cupIndex >= 0) {
-      emit(sim, {
-        type: 'cup',
-        cup: cups[cupIndex],
-        cupIndex: cupIndex,
-        value: cups[cupIndex].value,
-        valueMul: fin(ball.valueMul) || 1,
-        x: ball.x,
-        y: f.y + f.h,
-        ball: ball,
-      });
-    } else {
-      emit(sim, { type: 'drain', x: ball.x, y: f.y + f.h, ball: ball });
-    }
+
+    collideGates(sim, ball);
+    if (ball.alive) collideCupRim(sim, ball);
   }
 
   // One fixed step (1/60 s) over every live ball. Returns the count of balls still in flight.
   function stepBalls(sim, dt) {
     const balls = sim.balls;
-    if (!balls || !balls.length) return 0;
+    if (!balls) return 0;
     const phys = config().physics;
     const f = board().field;
     const cupRowY = board().cupY;
     const wind = sim.wind || {};
     const windForce = fin(wind.force);
+    const lifeTicks = Math.max(1, Math.round(num(config().cascade.ballLife, 12) * 60));
+    const cupCross = cupRowY + board().ballRadius * 0.5;
     let alive = 0;
 
     const bumpers = gatherBumpers(sim, []);
@@ -367,7 +506,9 @@
 
     for (let i = 0; i < balls.length; i += 1) {
       const ball = balls[i];
-      const prevY = ball.y;
+      const prevY = num(ball.py, ball.y);
+      ball.px = ball.x;
+      ball.py = ball.y;
 
       ball.vy += phys.gravity * dt;
       ball.vx += windForce * dt;
@@ -384,24 +525,28 @@
       collideWorld(sim, ball, dt, null, bumpers, obstacles);
       checkTulips(sim, ball);
 
-      // Ball dripped below the cup row without registering: count as a drain.
-      if (ball.alive) {
-        const crossed = prevY + ball.r * 0.5 < cupRowY && ball.y + ball.r * 0.5 >= cupRowY;
-        if (crossed || ball.y - ball.r > f.y + f.h) resolveCupRow(sim, ball, prevY);
+      if (ball.alive && num(ball.rimRolls, 0) > 0) {
+        const slide = Math.hypot(ball.vx, ball.vy) < 40 ? ballSign(sim, ball, 41) * num(phys.cupFloorSlide, 40) : 0;
+        ball.vx += slide;
       }
 
       if (ball.alive) {
-        ball.age = fin(ball.age) + dt;
-        if (ball.age > config().cascade.ballLife) {
-          ball.alive = false;
-          emit(sim, { type: 'expire', x: ball.x, y: ball.y, ball: ball });
-        } else {
-          alive += 1;
-        }
+        ball.age = fin(ball.age) + 1;
+        const crossed = prevY + ball.r * 0.5 < cupCross && ball.y + ball.r * 0.5 >= cupCross;
+        if (ball.age >= lifeTicks) resolveFaded(sim, ball, prevY);
+        else if (crossed || ball.y - ball.r > f.y + f.h) resolveCupRow(sim, ball, prevY);
       }
+
+      if (ball.alive) alive += 1;
       pushTrail(ball);
     }
 
+    write = 0;
+    for (let i = 0; i < balls.length; i += 1) {
+      const b = balls[i];
+      if (b && b.alive) balls[write++] = b;
+    }
+    balls.length = write;
     return alive;
   }
 
@@ -410,5 +555,11 @@
     stepBalls: stepBalls,
     collideGates: collideGates,
     resolveCupRow: resolveCupRow,
+    topIsOpen: topIsOpen,
+    substepsFor: function (ball, dt) {
+      const phys = config().physics;
+      const speed = Math.hypot(fin(ball.vx), fin(ball.vy));
+      return Math.min(phys.maxSubSteps, Math.max(1, Math.ceil((speed * dt) / Math.max(1, fin(ball.r) || 8))));
+    },
   };
 })();
