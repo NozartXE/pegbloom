@@ -9,6 +9,7 @@
   const SPOT = { x: 344, y: 168, s: 0.84 };
   const BUILD = { x: 572, y: 94, w: 300, h: 296 };
   const META = { x: 906, y: 94, w: 350, h: 296 };
+  const META_Y = { x: 910, y: 118, w: 342 };
   const TILES = { x: 24, y: 414, w: 656, h: 76 };
   const THRESH = { x: 24, y: 514, w: 656, h: 212 };
   const FEATS = { x: 704, y: 414, w: 552, h: 100 };
