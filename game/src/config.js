@@ -1,15 +1,15 @@
 // Every PEGBLOOM tuning number, colour and display name (PB_CONFIG, PB_NAMES, PB_PALETTE).
 
 globalThis.PB_PALETTE = {
-  cream: '#FFF6E9',
+  cream: '#FFEFD2',
   paper: '#FFFDF6',
-  coral: '#FF7A59',
-  gold: '#FFC53D',
-  sky: '#57B8FF',
-  mint: '#4FD8A5',
-  pink: '#FF9FB2',
-  leaf: '#58B368',
-  ink: '#2B2118',
+  coral: '#FF5A2E',
+  gold: '#FFAE00',
+  sky: '#1E9BFF',
+  mint: '#14C98B',
+  pink: '#FF7FA5',
+  leaf: '#2FA84F',
+  ink: '#221709',
 };
 
 globalThis.PB_CONFIG = {
