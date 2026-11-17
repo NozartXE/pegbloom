@@ -252,9 +252,9 @@
   function backdrop(ctx, sim) {
     const p = palette();
     const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, mixHex(p.cream, p.sky, 0.1));
+    g.addColorStop(0, mixHex(p.cream, p.sky, 0.16));
     g.addColorStop(0.42, p.cream);
-    g.addColorStop(1, mixHex(p.cream, p.gold, 0.16));
+    g.addColorStop(1, mixHex(p.cream, p.gold, 0.24));
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
     // sun haze arcs behind the cabinet
@@ -509,8 +509,9 @@
     const gx1 = f.x + f.w + 54;
     roundRect(ctx, gx0, f.y - 18, 46, f.h + 44, 14, mixHex(p.pink, p.paper, 0.38));
     roundRect(ctx, gx1 - 46, f.y - 18, 46, f.h + 44, 14, mixHex(p.pink, p.paper, 0.38));
-    // peg field
-    roundRect(ctx, f.x, f.y, f.w, f.h, 12, p.paper);
+    // peg field: a planted mint bed, not blank paper - the board must read as a
+    // living garden at thumbnail size, so the bed carries a real tint.
+    roundRect(ctx, f.x, f.y, f.w, f.h, 12, mixHex(p.mint, p.paper, 0.58));
     ctx.lineWidth = 3;
     ctx.strokeStyle = p.ink;
     roundRectPath(ctx, f.x, f.y, f.w, f.h, 12);
@@ -520,7 +521,7 @@
     ctx.beginPath();
     roundRectPath(ctx, f.x + 2, f.y + 2, f.w - 4, f.h - 4, 10);
     ctx.clip();
-    ctx.strokeStyle = rgba(p.sky, 0.14);
+    ctx.strokeStyle = rgba(p.leaf, 0.2);
     ctx.lineWidth = 1;
     for (let x = f.x + 30; x < f.x + f.w; x += 30) {
       ctx.beginPath();
@@ -533,6 +534,34 @@
       ctx.moveTo(f.x, y);
       ctx.lineTo(f.x + f.w, y);
       ctx.stroke();
+    }
+    // Garden texture in the gaps between pegs: deterministic flecks, buds and
+    // grass blades from the same hash as the backdrop grain. Purely decorative;
+    // the sim neither knows nor cares that the bed is planted.
+    for (let i = 0; i < 130; i += 1) {
+      const dx = f.x + 12 + hash(i, 31) * (f.w - 24);
+      const dy = f.y + 12 + hash(i, 57) * (f.h - 24);
+      const kind = i % 3;
+      if (kind === 0) {
+        ctx.beginPath();
+        ctx.arc(dx, dy, 2.2 + hash(i, 71) * 1.6, 0, Math.PI * 2);
+        ctx.fillStyle = rgba(i % 2 ? p.gold : p.pink, 0.55);
+        ctx.fill();
+      } else if (kind === 1) {
+        ctx.strokeStyle = rgba(p.leaf, 0.5);
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(dx - 3, dy + 3);
+        ctx.quadraticCurveTo(dx - 1, dy - 2, dx - 3.4, dy - 4.6);
+        ctx.moveTo(dx + 3, dy + 3);
+        ctx.quadraticCurveTo(dx + 1, dy - 2, dx + 3.4, dy - 4.6);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.arc(dx, dy, 1.5, 0, Math.PI * 2);
+        ctx.fillStyle = rgba(p.leaf, 0.45);
+        ctx.fill();
+      }
     }
     ctx.restore();
     // gutter art over the pink
@@ -564,25 +593,32 @@
     const x = num(peg.x, 0);
     const y = num(peg.y, 0);
     const r = num(peg.r, 8);
+    // Drawn radius is presentation-only: pegs paint ~2px proud of their collision
+    // radius so the board reads dense and jewel-like at thumbnail size. The sim
+    // never sees this; physics keeps using peg.r.
+    const vr = r + 2.2;
     if (peg.rim) {
       ctx.beginPath();
       ctx.arc(x, y, r + 1.5, 0, Math.PI * 2);
       ctx.fillStyle = p.coral;
       ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = rgba(p.ink, 0.75);
+      ctx.stroke();
       return;
     }
     const lit = num(peg.lit, 0) > 0;
     const dead = num(peg.dead, 0) > 0 || peg.pestOwner;
     const golden = peg.golden === true;
     const flash = num(peg.hitFlash, 0);
-    let hi = mixHex(p.sky, p.paper, 0.2);
-    let lo = p.sky;
+    let hi = mixHex(p.sky, p.paper, 0.04);
+    let lo = mixHex(p.sky, p.ink, 0.15);
     if (dead) {
-      hi = mixHex(p.gold, p.paper, 0.5);
-      lo = mixHex(p.sky, p.gold, 0.55);
+      hi = mixHex(p.gold, p.paper, 0.3);
+      lo = mixHex(p.gold, p.ink, 0.08);
     } else if (lit) {
-      hi = mixHex(p.gold, p.paper, 0.25);
-      lo = p.gold;
+      hi = mixHex(p.gold, p.paper, 0.08);
+      lo = mixHex(p.gold, p.coral, 0.3);
     }
     ctx.save();
     if (golden || (lit && !dead)) {
@@ -591,56 +627,56 @@
     }
     if (lit && !dead) {
       ctx.beginPath();
-      ctx.arc(x, y, r * (2.5 + flash * 1.2), 0, Math.PI * 2);
-      ctx.fillStyle = rgba(p.gold, 0.16 + flash * 0.12);
+      ctx.arc(x, y, vr * (2.5 + flash * 1.2), 0, Math.PI * 2);
+      ctx.fillStyle = rgba(p.gold, 0.22 + flash * 0.12);
       ctx.fill();
     }
-    const halo = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.15, x, y, r);
-    halo.addColorStop(0, p.paper);
+    const halo = ctx.createRadialGradient(x - vr * 0.35, y - vr * 0.4, vr * 0.15, x, y, vr);
+    halo.addColorStop(0, mixHex(hi, p.paper, 0.55));
     halo.addColorStop(0.45, hi);
     halo.addColorStop(1, lo);
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.arc(x, y, vr, 0, Math.PI * 2);
     ctx.fillStyle = halo;
     ctx.fill();
     ctx.shadowBlur = 0;
-    ctx.lineWidth = 1.8;
-    ctx.strokeStyle = rgba(p.ink, 0.55);
+    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = rgba(p.ink, 0.8);
     ctx.stroke();
     if (dead) {
       // moth-grey cap: soft blossom-grey, bright, with two tiny antennae so it reads "clung"
       ctx.beginPath();
-      ctx.arc(x, y - r * 0.15, r * 0.62, Math.PI, 0);
-      ctx.quadraticCurveTo(x, y + r * 0.5, x - r * 0.62, y - r * 0.15);
+      ctx.arc(x, y - vr * 0.15, vr * 0.62, Math.PI, 0);
+      ctx.quadraticCurveTo(x, y + vr * 0.5, x - vr * 0.62, y - vr * 0.15);
       ctx.fillStyle = mixHex(p.gold, p.paper, 0.62);
       ctx.fill();
       ctx.lineWidth = 1.4;
       ctx.strokeStyle = rgba(p.ink, 0.5);
       ctx.stroke();
       ctx.beginPath();
-      ctx.moveTo(x - 2, y - r * 0.6);
-      ctx.quadraticCurveTo(x - 7, y - r * 1.3, x - 10, y - r * 1.2);
-      ctx.moveTo(x + 2, y - r * 0.6);
-      ctx.quadraticCurveTo(x + 7, y - r * 1.3, x + 10, y - r * 1.2);
+      ctx.moveTo(x - 2, y - vr * 0.6);
+      ctx.quadraticCurveTo(x - 7, y - vr * 1.3, x - 10, y - vr * 1.2);
+      ctx.moveTo(x + 2, y - vr * 0.6);
+      ctx.quadraticCurveTo(x + 7, y - vr * 1.3, x + 10, y - vr * 1.2);
       ctx.lineWidth = 1.6;
       ctx.strokeStyle = rgba(p.ink, 0.7);
       ctx.stroke();
     } else {
       ctx.beginPath();
-      ctx.arc(x - r * 0.32, y - r * 0.36, r * 0.3, 0, Math.PI * 2);
+      ctx.arc(x - vr * 0.32, y - vr * 0.36, vr * 0.3, 0, Math.PI * 2);
       ctx.fillStyle = rgba(p.paper, 0.95);
       ctx.fill();
     }
     if (golden) {
       ctx.beginPath();
-      ctx.arc(x, y, r + 3.4, 0, Math.PI * 2);
+      ctx.arc(x, y, vr + 3.4, 0, Math.PI * 2);
       ctx.lineWidth = 2.6;
       ctx.strokeStyle = p.gold;
       ctx.stroke();
       for (let i = 0; i < 4; i += 1) {
         const a = Math.PI * 0.25 + i * Math.PI * 0.5;
         ctx.beginPath();
-        ctx.arc(x, y, r + 5.6, a - 0.18, a + 0.18);
+        ctx.arc(x, y, vr + 5.6, a - 0.18, a + 0.18);
         ctx.lineWidth = 2;
         ctx.strokeStyle = rgba(p.gold, 0.9);
         ctx.stroke();
@@ -648,7 +684,7 @@
     }
     if (peg.husklingNear > 0) {
       ctx.beginPath();
-      ctx.arc(x, y, r + 4, 0, Math.PI * 2);
+      ctx.arc(x, y, vr + 4, 0, Math.PI * 2);
       ctx.lineWidth = 2;
       ctx.setLineDash([3, 3]);
       ctx.strokeStyle = p.coral;
@@ -657,7 +693,7 @@
     }
     if (flash > 0.02) {
       ctx.beginPath();
-      ctx.arc(x, y, r * (1.4 + (1 - flash) * 1.6), 0, Math.PI * 2);
+      ctx.arc(x, y, vr * (1.4 + (1 - flash) * 1.6), 0, Math.PI * 2);
       ctx.lineWidth = 2;
       ctx.strokeStyle = rgba(p.paper, flash * 0.9);
       ctx.stroke();
@@ -713,7 +749,7 @@
       ctx.rotate(a + Math.PI * 0.5);
       ctx.beginPath();
       ctx.ellipse(0, -len * 0.5, half * (0.3 + open * 0.14), len * 0.5, 0, 0, Math.PI * 2);
-      ctx.fillStyle = i % 2 === 0 ? petal : mixHex(petal, p.paper, 0.3);
+      ctx.fillStyle = i % 2 === 0 ? petal : mixHex(petal, p.paper, 0.16);
       ctx.fill();
       ctx.lineWidth = 2;
       ctx.strokeStyle = rgba(p.ink, 0.45);
@@ -737,8 +773,8 @@
     ctx.quadraticCurveTo(x + half * 0.92, y + h, x + half, y + 14);
     ctx.closePath();
     const body = ctx.createLinearGradient(x - half, y, x + half, y + h);
-    body.addColorStop(0, mixHex(petal, p.paper, 0.5));
-    body.addColorStop(1, mixHex(petal, p.paper, 0.1));
+    body.addColorStop(0, mixHex(petal, p.paper, 0.24));
+    body.addColorStop(1, petal);
     ctx.fillStyle = body;
     ctx.fill();
     ctx.lineWidth = 2.6;
@@ -769,7 +805,7 @@
       const len = h * 0.46 * (1 - open * 0.45);
       ctx.beginPath();
       ctx.ellipse(0, -len * 0.42, half * 0.34, len * 0.52, 0, 0, Math.PI * 2);
-      ctx.fillStyle = i === 1 ? mixHex(petal, p.paper, 0.35) : petal;
+      ctx.fillStyle = i === 1 ? mixHex(petal, p.paper, 0.18) : petal;
       ctx.fill();
       ctx.lineWidth = 2;
       ctx.strokeStyle = rgba(p.ink, 0.45);
@@ -779,7 +815,7 @@
     // cup mouth rim with the sunwell-level notch
     ctx.beginPath();
     ctx.ellipse(x, y + 15, half * 0.96, 5, 0, 0, Math.PI * 2);
-    ctx.fillStyle = mixHex(petal, p.paper, 0.62);
+    ctx.fillStyle = mixHex(petal, p.paper, 0.4);
     ctx.fill();
     ctx.lineWidth = 2.4;
     ctx.strokeStyle = p.ink;
