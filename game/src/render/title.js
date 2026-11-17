@@ -84,6 +84,21 @@
     text(ctx, str, x, y, size, spec);
   }
 
+  function circle(ctx, x, y, r, fill, stroke, lw) {
+    if (howto().circle) return howto().circle(ctx, x, y, r, fill, stroke, lw);
+    ctx.beginPath();
+    ctx.arc(x, y, Math.max(0.5, r), 0, Math.PI * 2);
+    if (fill) {
+      ctx.fillStyle = fill;
+      ctx.fill();
+    }
+    if (stroke) {
+      ctx.lineWidth = num(lw, 2);
+      ctx.strokeStyle = stroke;
+      ctx.stroke();
+    }
+  }
+
   function fitHeading(ctx, str, x, y, maxW, opts) {
     if (howto().fitHeading) return howto().fitHeading(ctx, str, x, y, maxW, opts);
     text(ctx, str, x, y, 64, opts);

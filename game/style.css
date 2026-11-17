@@ -113,3 +113,34 @@ body {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* DOM menu interiors (PB_Menus: HOW TO PLAY, OPTIONS, ALMANAC). Same cream paper, big condensed type. */
+#overlay .pb-menu { width: min(980px, 94vw); border-color: #FF7A59; }
+#overlay .pb-menu h2 { font-size: 52px; letter-spacing: 2px; }
+#overlay .pb-menu h3 { margin-top: 22px; font-size: 24px; letter-spacing: 1px; }
+#overlay .pb-menu h3 small { font-size: 14px; font-weight: 400; color: #5B4A3A; margin-left: 8px; }
+#overlay .pb-lead { margin: 0 0 4px; font-size: 26px; font-weight: 700; text-transform: uppercase; color: #FF7A59; letter-spacing: 1px; }
+#overlay .pb-scope { display: inline-block; margin: 2px 0 10px; padding: 6px 16px; background: #FFF6E9; border: 2px solid #FFC53D; border-radius: 999px; font-size: 16px; font-weight: 700; text-transform: uppercase; }
+#overlay .pb-note { margin: 8px 0 0; font-size: 15px; color: #5B4A3A; }
+#overlay .pb-section { margin-top: 16px; }
+#overlay .pb-rule { display: flex; align-items: baseline; gap: 12px; margin: 4px 0; padding: 7px 12px; background: #FFF6E9; border: 2px solid rgba(43, 33, 24, 0.18); border-radius: 10px; font-size: 18px; }
+#overlay .pb-rule-key { flex: 0 0 78px; font-weight: 700; color: #2B2118; text-transform: uppercase; }
+#overlay .pb-rule.pb-win { background: #E7F8EF; border-color: #4FD8A5; }
+#overlay .pb-rule.pb-win .pb-rule-key { color: #23945F; }
+#overlay .pb-rule.pb-lose { background: #FFF0EA; border-color: #FF7A59; }
+#overlay .pb-rule.pb-lose .pb-rule-key { color: #E8553A; }
+#overlay .pb-keys { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 6px 18px; }
+#overlay .pb-key { display: flex; align-items: center; gap: 10px; font-size: 16px; }
+#overlay .pb-key kbd { flex: 0 0 auto; min-width: 66px; text-align: center; padding: 3px 8px; background: #FFFDF6; border: 2px solid #2B2118; border-radius: 8px; font: 700 14px "Arial Narrow", Arial, sans-serif; box-shadow: 0 2px 0 #2B2118; }
+#overlay .pb-grid { display: grid; gap: 10px; margin-top: 8px; }
+#overlay .pb-card { background: #FFFDF6; border: 2px solid #2B2118; border-top: 8px solid #FFC53D; border-radius: 12px; padding: 10px 12px; }
+#overlay .pb-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#overlay .pb-card-title { font-size: 18px; text-transform: uppercase; letter-spacing: 0.5px; }
+#overlay .pb-card-body { margin: 6px 0 0; font-size: 14px; line-height: 1.35; }
+#overlay .pb-chip { display: inline-block; padding: 2px 9px; border: 2px solid #2B2118; border-radius: 999px; background: #FFC53D; font-size: 12px; font-weight: 700; text-transform: uppercase; white-space: nowrap; }
+#overlay .pb-draft-list { list-style: none; margin: 6px 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 6px 16px; }
+#overlay .pb-draft-list li { padding: 5px 0; border-bottom: 1px dashed rgba(43, 33, 24, 0.2); font-size: 15px; }
+#overlay .pb-draft-list li em { color: #23945F; font-style: normal; font-size: 13px; display: block; }
+#overlay .pb-mute-row input[type="checkbox"] { width: 24px; height: 24px; accent-color: #FF7A59; }
+#overlay .pb-mute-row { margin-top: 18px; }
+#overlay .pb-mute-row label { flex: 0 0 auto; font-size: 20px; }

@@ -621,6 +621,8 @@
     const key = offer.key;
     const owned = sim.owned || (sim.owned = {});
     owned[key] = num(owned[key], 0) + 1;
+    if (!Array.isArray(sim.draftLog)) sim.draftLog = [];
+    sim.draftLog.push({ key: key, shower: sim.shower, target: sim.draft.target || sim.shower + 1 });
     if (offer.buildable !== false) sim.draft.pending = { key: key, buildable: true };
     sim.draft.chosen = i;
     const next = sim.draft.target || sim.shower + 1;

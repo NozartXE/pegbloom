@@ -1049,5 +1049,6 @@
     ownedEntries: ownedEntries,
     draftSim: draftSim,
     readDemo: readDemo,
+    runIcon: decorate,
   };
 })();
