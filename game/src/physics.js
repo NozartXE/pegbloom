@@ -298,13 +298,46 @@
     return Math.max(cup.w * 0.5 * share, Math.min(cup.w * 0.5, cup.w * 0.5 * share + num(phys.cupFunnel, 6)));
   }
 
-  // Cup row crossing: pick the cup whose mouth is under the ball, else it drains between cups.
+  // Drain channels: the uncovered field width left and right of the centred cup row.
+  function drainChannels(sim) {
+    const cups = (sim && sim.cups) || [];
+    if (cups.drains && cups.drains.length) return cups.drains;
+    const f = board().field;
+    if (!cups.length) return [{ x: f.x, y: board().cupY, w: f.w, h: f.h, side: 'left' }];
+    const first = cups[0];
+    const last = cups[cups.length - 1];
+    const left = first.x - first.w * 0.5;
+    const right = last.x + last.w * 0.5;
+    return [
+      { x: f.x, y: num(first.y, board().cupY), w: left - f.x, h: f.h, side: 'left' },
+      { x: right, y: num(first.y, board().cupY), w: f.x + f.w - right, h: f.h, side: 'right' },
+    ];
+  }
+
+  // Cup row crossing: outside the cup row the ball falls into a side drain channel; inside it,
+  // pick the cup whose mouth is under the ball, else it drains between cups.
   function resolveCupRow(sim, ball, prevY) {
     const f = board().field;
     const cups = sim.cups || [];
     let cupIndex = -1;
     if (ball.captured && typeof ball.laneCup === 'number' && cups[ball.laneCup]) {
       cupIndex = ball.laneCup;
+    }
+    if (cupIndex < 0) {
+      const lanes = drainChannels(sim);
+      const laneTop = num(cups.startY, board().cupY);
+      for (let i = 0; i < lanes.length; i += 1) {
+        const lane = lanes[i];
+        if (lane.w <= 0) continue;
+        if (fin(ball.x) >= lane.x && fin(ball.x) <= lane.x + lane.w && fin(ball.y) >= laneTop) {
+          ball.alive = false;
+          ball.drained = true;
+          ball.drainSide = lane.side;
+          ball.x = clamp(fin(ball.x), f.x, f.x + f.w);
+          emit(sim, { type: 'drain', x: ball.x, y: f.y + f.h, side: lane.side, ball: ball });
+          return;
+        }
+      }
     }
     if (cupIndex < 0) {
       const phys = config().physics;
@@ -323,7 +356,8 @@
       return;
     }
     ball.alive = false;
-    emit(sim, { type: 'drain', x: ball.x, y: f.y + f.h, ball: ball });
+    ball.drained = true;
+    emit(sim, { type: 'drain', x: ball.x, y: f.y + f.h, side: 'gap', ball: ball });
   }
 
   // A ball past its max life fades on the spot and counts as a drain, so no ball can stay live forever.
@@ -338,7 +372,10 @@
     emit(sim, { type: 'drain', x: x, y: y, ball: ball, faded: true });
   }
 
-  // Petal gates are rotating line-segment deflectors; push out and reflect only the into-face velocity.
+  // Petal gates are rotating segment deflectors with blunt ends; push out and reflect only the
+  // into-face velocity. The ball is a circle, so the contact test grows the segment by the ball
+  // radius along its length and by ball radius + half thickness across it: a ball falls past an
+  // open lane untouched instead of being caught by the petal's edge.
   function collideGates(sim, ball) {
     const gates = sim.gates;
     if (!gates || !gates.length) return;
@@ -347,20 +384,27 @@
       const g = gates[i];
       if (!g || g.on === false) continue;
       const half = (fin(g.len) || 96) * 0.5;
+      const hinge = fin(g.hinge) < 0 ? -1 : 1;
       const cos = Math.cos(fin(g.angle));
       const sin = Math.sin(fin(g.angle));
       const dx = ball.x - g.x;
       const dy = ball.y - g.y;
       const along = dx * cos + dy * sin;
-      if (along < -half || along > half) continue;
+      if (along * hinge < -half - ball.r || along * hinge > half + ball.r) continue;
       const perp = -dx * sin + dy * cos;
       const limit = ball.r + GATE_THICKNESS * 0.5;
       if (perp > limit || perp < -limit) continue;
-      const sign = perp > 0 ? 1 : -1;
-      const nx = -sin * sign;
-      const ny = cos * sign;
-      ball.x = g.x + cos * along + nx * limit;
-      ball.y = g.y + sin * along + ny * limit;
+      // One-way petal: a ball already below its drop side slides under the blade instead of
+      // rolling along the underside, so a gate never secretly gathers a drained ball inward.
+      if (perp * hinge < 0) continue;
+      // Keep the push perpendicular: a contact near a blunt end saturates along at the end so the
+      // ball leaves from the corner instead of sliding along the whole petal.
+      const pinned = clamp(along * hinge, -half, half);
+      const alongPush = (pinned - along * hinge) * hinge;
+      const nx = -sin * hinge;
+      const ny = cos * hinge;
+      ball.x = g.x + cos * (along + alongPush) + nx * limit;
+      ball.y = g.y + sin * (along + alongPush) + ny * limit;
       const vn = ball.vx * nx + ball.vy * ny;
       if (vn < 0) {
         const e = Math.min(GATE_MAX_BOUNCE, phys.restitution + 0.2);
@@ -568,6 +612,7 @@
     stepBalls: stepBalls,
     collideGates: collideGates,
     resolveCupRow: resolveCupRow,
+    drainChannels: drainChannels,
     topIsOpen: topIsOpen,
     substepsFor: function (ball, dt) {
       const phys = config().physics;

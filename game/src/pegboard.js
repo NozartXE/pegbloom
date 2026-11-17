@@ -153,7 +153,7 @@
     return sockets;
   }
 
-  // Nine bloom cups spanning the field width; cup tops pair with rim pegs physics bounces off.
+  // Nine bloom cups centred in the field; the leftover field width on each side is the drain channel.
   function buildCups(config) {
     const c = config || cfg();
     const b = c.board;
@@ -164,9 +164,10 @@
     const pal = palette();
     const cupW = b.cupWidth;
     const cupH = b.cupHeight;
-    const gap = num(b.cupGap, Math.max(2, (f.w - n * cupW) / (n - 1)));
+    const gap = num(b.cupGap, 4);
     const rowW = n * cupW + (n - 1) * gap;
     const left = f.x + (f.w - rowW) * 0.5;
+    const right = left + rowW;
     const y = num(b.cupY, f.y + f.h);
     const cups = [];
     for (let i = 0; i < n; i += 1) {
@@ -188,6 +189,14 @@
         index: i,
       });
     }
+    cups.rowW = rowW;
+    cups.startX = left;
+    cups.endX = right;
+    cups.startY = y;
+    cups.drains = [
+      { x: f.x, y: y, w: left - f.x, h: f.h, side: 'left' },
+      { x: right, y: y, w: f.x + f.w - right, h: f.h, side: 'right' },
+    ];
     return cups;
   }
 

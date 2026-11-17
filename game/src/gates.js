@@ -7,6 +7,10 @@
   const GATE_STEP = Math.PI / 12;
   const GATE_LEN = (globalThis.PB_CONFIG && globalThis.PB_CONFIG.board && globalThis.PB_CONFIG.board.gateLength) || 120;
   const EASE_RATE = 0.16;
+  // Flat petals only catch on one side of their anchor so the centre drop lane stays open; the
+  // drain channels beside the cup row get their balls from there. A side is the sign of along.
+  const HINGE_NORMAL = 1;
+  const HINGE_MIRROR = -1;
 
   function config() {
     const c = globalThis.PB_CONFIG;
@@ -34,10 +38,19 @@
 
   function makeGates(c) {
     const positions = gatePositions(c || config());
-    return positions.map(function (p) {
-      // Petals rest flat, i.e. aimed horizontally across the field, so an un-aimed shower
-      // still lets the cascade reach the cup row; players tilt them to steer.
-      return { x: p.x, y: p.y, angle: Math.PI * 0.5, target: Math.PI * 0.5, len: (c || config()).board.gateLength || GATE_LEN, side: p.side, on: true };
+    return positions.map(function (p, i) {
+      // Petals rest flat, hinged on the field centre line so their flat half lies to one side;
+      // the other side stays open, so an un-aimed cascade falls straight through the drop lane.
+      return {
+        x: p.x,
+        y: p.y,
+        angle: Math.PI * 0.5,
+        target: Math.PI * 0.5,
+        len: (c || config()).board.gateLength || GATE_LEN,
+        side: p.side,
+        hinge: i % 2 === 0 ? HINGE_NORMAL : HINGE_MIRROR,
+        on: true,
+      };
     });
   }
 
@@ -89,5 +102,7 @@
     GATE_MIN: GATE_MIN,
     GATE_MAX: GATE_MAX,
     GATE_LEN: GATE_LEN,
+    HINGE_NORMAL: HINGE_NORMAL,
+    HINGE_MIRROR: HINGE_MIRROR,
   };
 })();
