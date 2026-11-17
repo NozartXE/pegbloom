@@ -7,6 +7,7 @@
   const TANGENT_JITTER = 0.18;
   const GATE_THICKNESS = 6;
   const GATE_MAX_BOUNCE = 1.15;
+  const REST_CLIMB = 0.6;
 
   function config() {
     const c = globalThis.PB_CONFIG;
@@ -148,17 +149,20 @@
     return { nx: nx, ny: ny, impact: 0, vn: vn };
   }
 
-  // Moves the ball forward (swept axis-by-axis) and resolves whatever it touches.
+  // Moves the ball forward (swept, axis-separated) and resolves whatever it touches.
   function collideWorld(sim, ball, dt, pegs, bumpers, obstacles) {
     const phys = config().physics;
     const f = board().field;
     const speed = Math.hypot(ball.vx, ball.vy);
     const substeps = Math.min(phys.maxSubSteps, Math.max(1, Math.ceil((speed * dt) / Math.max(1, ball.r))));
     const h = dt / substeps;
+    const cx0 = Math.max(f.x - 26, 0);
 
     for (let s = 0; s < substeps; s += 1) {
       const speedNow = Math.hypot(ball.vx, ball.vy);
-      ball.x += ball.vx * h;
+        ball.x += ball.vx * h;
+      ball.y += Math.max(ball.vy * h, -REST_CLIMB);
+
       if (ball.x - ball.r < f.x) {
         ball.x = f.x + ball.r;
         if (ball.vx < 0) ball.vx = -ball.vx * phys.wallRestitution;
@@ -168,9 +172,7 @@
         if (ball.vx > 0) ball.vx = -ball.vx * phys.wallRestitution;
         emit(sim, { type: 'wall', side: 'right', ball: ball });
       }
-
-      ball.y += ball.vy * h;
-      if (ball.y - ball.r < f.y) {
+      if (ball.x > cx0 - 20 && ball.y - ball.r < f.y) {
         ball.y = f.y + ball.r;
         if (ball.vy < 0) ball.vy = -ball.vy * phys.wallRestitution;
         emit(sim, { type: 'wall', side: 'top', ball: ball });
@@ -193,8 +195,8 @@
         const res = collideCircle(ball, bump.x, bump.y, bump.r, phys.restitution, TANGENT_JITTER * 0.5, sim);
         if (res && res.impact > 0) {
           const k = bump.boost;
-          ball.vx = ball.vx + res.nx * res.impact * (k - 1);
-          ball.vy = ball.vy + res.ny * res.impact * (k - 1);
+          ball.vx += res.nx * res.impact * (k - 1);
+          ball.vy += res.ny * res.impact * (k - 1);
           emit(sim, { type: 'bumper', socket: bump.source, x: bump.x, y: bump.y, impact: res.impact, ball: ball });
         }
       }
@@ -204,7 +206,7 @@
         const res = collideCircle(ball, ob.x, ob.y, ob.r, 0.45, TANGENT_JITTER, sim);
         if (res && res.impact > 0) {
           emit(sim, {
-            type: ob.kind === 'boss' || ob.isBoss ? 'bossHit' : 'pestHit',
+            type: ob.isBoss || ob.kind === 'boss' ? 'bossHit' : 'pestHit',
             pest: ob.source || ob,
             hp: ob.hp,
             x: ob.x,
@@ -214,6 +216,7 @@
           });
         }
       }
+
     }
 
     collideGates(sim, ball);
