@@ -425,7 +425,7 @@
     wireSound(sim, true);
     globalThis.PB_Main.currentSim = sim;
     globalThis.PB_Main.run = app.run;
-    setToast('SHOWER 1 - ' + (sim.banner ? sim.banner.text : 'READY'), 'shower', 120);
+    setToast(sim.banner ? sim.banner.text : 'SHOWER 1 - READY', 'shower', 120);
     setScreen('build');
     return sim;
   }
@@ -498,6 +498,7 @@
     const o = opts || {};
     if (app.screen !== next) app.previous = app.screen;
     app.screen = next;
+    app.toast = null;
     app.buttons = {};
     app.view.buttons = app.buttons;
     app.staged = false;
