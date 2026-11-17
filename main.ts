@@ -39,3 +39,7 @@ writeFileSync(
     game_path_max_bytes: 1000,
   }),
 );
+
+// PEGBLOOM hand-in marker (attempt 6 + visual-fix round): the dossier written
+// above is the deliverable; this authored line reports where it landed.
+console.log('pegbloom: dossier written to ' + out);
