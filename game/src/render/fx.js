@@ -67,12 +67,15 @@
     const kind = item.colour || 'gold';
     const fill = p[kind] || (kind === 'ink' ? p.ink : kind);
     const size = item.big ? 36 : 24;
-    const rise = 46 * (1 - Math.pow(1 - t, 2));
+    // Deterministic separation: simultaneous floaters at neighbouring pegs/cups used to draw
+    // exactly on top of each other. The spawn serial spreads them across 5 columns and 3 rows.
+    const si = num(item.seedIndex, 0);
+    const rise = 46 * (1 - Math.pow(1 - t, 2)) * (0.85 + (si % 3) * 0.15);
     const bob = Math.sin(tick * 0.09 + age * 0.3) * 1.6;
     const fade = t < 0.72 ? 1 : 1 - (t - 0.72) / 0.28;
     const pop = t < 0.12 ? 0.6 + (t / 0.12) * 0.4 : 1;
-    const x = num(item.x, W * 0.5);
-    const y = num(item.y, H * 0.5) + 22 - rise + bob;
+    const x = num(item.x, W * 0.5) + (((si * 37) % 5) - 2) * 16;
+    const y = num(item.y, H * 0.5) + 22 - rise + bob - (si % 3) * (item.big ? 30 : 20);
     ctx.save();
     ctx.globalAlpha = clamp(fade, 0, 1);
     ctx.translate(x, y);

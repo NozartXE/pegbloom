@@ -309,7 +309,7 @@
     const rowLimit = 2;
     if (!list.length) text(ctx, 'CLEAR SKY - NO PESTS', x + 12, cy + 7, 16, { fill: p.leaf });
     for (let i = 0; i < list.length && i < rowLimit; i += 1) {
-      const kind = list[i].kind;
+      const kind = list[i].kind || list[i].key;
       const left = Math.max(0, num(list[i].count, 0) - eliminations(sim, kind));
       circle(ctx, x + 18, cy + i * rowH + 7, 6, p[pestColour(kind)] || p.coral, p.ink, 1.6);
       textFit(ctx, pestName(kind), x + 30, cy + i * rowH + 7, 112, 15, { align: 'left', fill: p.ink, minSize: 9 });
