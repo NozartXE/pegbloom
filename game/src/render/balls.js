@@ -59,15 +59,29 @@
   }
 
   function textFit(ctx, str, x, y, maxW, size, opts) {
-    const f = helper('textFit');
-    if (f) return f(ctx, str, x, y, maxW, size, opts);
+    const o = opts || {};
+    const label = String(str == null ? '' : str);
+    let fit = Math.max(6, num(size, 24));
+    const floor = Math.max(5, num(o.minSize, 8));
     ctx.save();
-    ctx.font = 'bold ' + Math.round(size) + 'px "Arial Narrow", Impact, sans-serif';
-    ctx.fillStyle = (opts && opts.fill) || '#2B2118';
-    ctx.textAlign = (opts && opts.align) || 'left';
+    ctx.font = 'bold ' + Math.round(fit) + 'px "Arial Narrow", Impact, sans-serif';
+    while (fit > floor && ctx.measureText(label).width > maxW) {
+      fit -= 1;
+      ctx.font = 'bold ' + Math.round(fit) + 'px "Arial Narrow", Impact, sans-serif';
+    }
+    ctx.textAlign = o.align || 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(String(str), x, y);
+    if (o.stroke) {
+      ctx.lineWidth = num(o.strokeW, 4);
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = o.stroke;
+      ctx.strokeText(label, x, y);
+    }
+    ctx.fillStyle = o.fill || '#2B2118';
+    ctx.fillText(label, x, y);
+    const width = ctx.measureText(label).width;
     ctx.restore();
+    return { size: fit, width: width, x: x, y: y };
   }
 
   function text(ctx, str, x, y, size, opts) {
@@ -429,8 +443,6 @@
     const offY = 18;
     gun(ctx, 9, tipX + offX - offX * 0.2, tipY + offY, 18, 18, p.mint);
     text(ctx, String(i + 1), tipX + offX - offX * 0.2, tipY + offY + 1, 13, { align: 'center', fill: p.ink });
-    const tilt = Math.round(((angle - Math.PI * 0.5) * 180) / Math.PI);
-    text(ctx, (tilt > 0 ? '+' : '') + tilt + ' DEG', tipX, tipY + 2, 13, { align: 'center', fill: p.ink, stroke: p.paper, strokeW: 4 });
   }
 
   function gates(ctx, sim) {

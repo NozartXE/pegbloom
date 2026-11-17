@@ -182,7 +182,7 @@
     return s;
   }
 
-  // Draws text sized to fit maxW, with optional extra letter spacing when stretched.
+  // Draws text sized to fit maxW.
   // opts: { align, baseline, fill, stroke, strokeW, maxW, minSize, weight, spacing, glow, glowColour }
   function textFit(ctx, text, x, y, maxW, size, opts) {
     const o = opts || {};
@@ -194,40 +194,22 @@
     ctx.font = font(fit, o.weight || 'bold');
     ctx.textBaseline = o.baseline || 'middle';
     ctx.textAlign = o.align || 'left';
-    const natural = ctx.measureText(str).width;
-    const pad = num(o.spacing, 0);
-    const widest = natural + pad * Math.max(0, str.length - 1);
-    if (widest > 0 && num(maxW, 0) > widest && fit >= target - 0.5) {
-      const stretch = Math.min(1.12, num(maxW, 0) / widest);
-      ctx.setTransform(stretch, 0, 0, 1, 0, 0);
-      x = x / stretch;
-    }
-    const sx = x;
-    let tx = sx;
-    if (ctx.textAlign === 'center') tx = sx - widest * 0.5;
-    else if (ctx.textAlign === 'right') tx = sx - widest;
+    const widest = ctx.measureText(str).width;
+    const tx = x;
     if (o.glow) {
       ctx.shadowColor = rgba(o.glowColour || p.gold, 0.75);
       ctx.shadowBlur = num(o.glow, 10);
     }
-    const draw = function (mode) {
-      let cx = tx;
-      for (let i = 0; i < str.length; i += 1) {
-        const ch = str[i];
-        ctx[mode === 'fill' ? 'fillText' : 'strokeText'](ch, cx, y);
-        cx += ctx.measureText(ch).width + pad;
-      }
-    };
     if (o.stroke) {
       ctx.lineWidth = num(o.strokeW, 6);
       ctx.lineJoin = 'round';
       ctx.strokeStyle = o.stroke;
-      draw('stroke');
+      ctx.strokeText(str, x, y);
     }
     ctx.fillStyle = o.fill || p.ink;
-    draw('fill');
+    ctx.fillText(str, x, y);
     ctx.restore();
-    return { size: fit, width: widest, x: tx - (tx === sx ? 0 : 0), y: y };
+    return { size: fit, width: widest, x: tx, y: y };
   }
 
   // Plain text in the condensed stack, no fitting. Keeps HUD and render files on one font.

@@ -79,12 +79,24 @@
   }
 
   function textFit(ctx, str, x, y, maxW, size, spec) {
-    const f = helper('textFit');
-    if (f) {
-      f(ctx, str, x, y, maxW, size, spec);
-      return;
+    const s = spec || {};
+    const p = palette();
+    const label = String(str == null ? '' : str);
+    const fit = fitSize(ctx, label, maxW, size, s.minSize, s.weight);
+    ctx.save();
+    ctx.font = 'bold ' + Math.round(fit) + 'px ' + FONT;
+    ctx.textAlign = s.align || 'left';
+    ctx.textBaseline = s.baseline || 'middle';
+    if (s.stroke) {
+      ctx.lineWidth = num(s.strokeW, 4);
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = s.stroke;
+      ctx.strokeText(label, x, y);
     }
-    text(ctx, str, x, y, size, spec);
+    ctx.fillStyle = s.fill || p.ink;
+    ctx.fillText(label, x, y);
+    ctx.restore();
+    return { size: fit, width: measure(ctx, label, fit), x: x, y: y };
   }
 
   function measure(ctx, str, size) {

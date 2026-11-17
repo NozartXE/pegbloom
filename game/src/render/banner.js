@@ -63,10 +63,29 @@
   }
 
   function textFit(ctx, str, x, y, maxW, size, spec) {
-    const f = helper('textFit');
-    if (f) return f(ctx, str, x, y, maxW, size, spec);
-    text(ctx, str, x, y, size, spec);
-    return null;
+    const s = spec || {};
+    const label = String(str == null ? '' : str);
+    let fit = Math.max(6, num(size, 24));
+    const floor = Math.max(5, num(s.minSize, 8));
+    ctx.save();
+    ctx.font = 'bold ' + Math.round(fit) + 'px "Arial Narrow", Arial, sans-serif';
+    while (fit > floor && ctx.measureText(label).width > maxW) {
+      fit -= 1;
+      ctx.font = 'bold ' + Math.round(fit) + 'px "Arial Narrow", Arial, sans-serif';
+    }
+    ctx.textAlign = s.align || 'left';
+    ctx.textBaseline = s.baseline || 'middle';
+    if (s.stroke) {
+      ctx.lineWidth = num(s.strokeW, 4);
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = s.stroke;
+      ctx.strokeText(label, x, y);
+    }
+    ctx.fillStyle = s.fill || palette().ink;
+    ctx.fillText(label, x, y);
+    const width = ctx.measureText(label).width;
+    ctx.restore();
+    return { size: fit, width: width, x: x, y: y };
   }
 
   // Kind -> ink for the coloured chip on each log row.

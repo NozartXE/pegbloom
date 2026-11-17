@@ -99,12 +99,29 @@
   }
 
   function textFit(ctx, str, x, y, maxW, size, spec) {
-    const f = helper('textFit');
-    if (f) {
-      f(ctx, str, x, y, maxW, size, spec);
-      return;
+    const s = spec || {};
+    const label = String(str == null ? '' : str);
+    let fit = Math.max(6, num(size, 24));
+    const floor = Math.max(5, num(s.minSize, 8));
+    ctx.save();
+    ctx.font = 'bold ' + Math.round(fit) + 'px "Arial Narrow", Arial, sans-serif';
+    while (fit > floor && ctx.measureText(label).width > maxW) {
+      fit -= 1;
+      ctx.font = 'bold ' + Math.round(fit) + 'px "Arial Narrow", Arial, sans-serif';
     }
-    text(ctx, str, x, y, size, spec);
+    ctx.textAlign = s.align || 'left';
+    ctx.textBaseline = s.baseline || 'middle';
+    if (s.stroke) {
+      ctx.lineWidth = num(s.strokeW, 4);
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = s.stroke;
+      ctx.strokeText(label, x, y);
+    }
+    ctx.fillStyle = s.fill || palette().ink;
+    ctx.fillText(label, x, y);
+    const width = ctx.measureText(label).width;
+    ctx.restore();
+    return { size: fit, width: width, x: x, y: y };
   }
 
   function chip(ctx, label, x, y, w, h, fill) {
@@ -502,6 +519,7 @@
   }
 
   function drawRight(ctx, sim, view) {
+    const p = palette();
     scorePanel(ctx, sim, view, RIGHT.x, 100, RIGHT.w, 150);
     bloomPanel(ctx, sim, RIGHT.x, 258, RIGHT.w, 92);
     seedsPanel(ctx, sim, RIGHT.x, 358, RIGHT.w, 88);
