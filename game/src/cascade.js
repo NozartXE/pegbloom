@@ -74,24 +74,29 @@
     if (sim.dropper) sim.dropper.cooldown = DROP_TICKS;
   }
 
+  // The one place a ball is born. It is the only caller of insertBall, so every spawned ball spends
+  // exactly one units of this shower's ball budget, and a drop is refused once the budget is 0.
   function spawnBall(sim) {
+    if (!sim || !sim.stats) return null;
+    if (num(sim.stats.ballsLeft, 0) <= 0) return null;
     const p = dropPoint(sim);
     const ball = globalThis.PB_Physics.makeBall(p.x, p.y, 0, ENTRY_VY);
     ball.valueMul = 1;
     ball.dropperX = p.x;
     if (num(adder(sim).spawnBounceSaves, 0) > 0) ball.bounceSaves = adder(sim).spawnBounceSaves;
-    sim.balls.push(ball);
-    sim.stats.ballsDropped += 1;
-    return ball;
+    return insertBall(sim, ball);
   }
 
-  // Insert an already-made ball (OVERBLOOM attracts, tools); counts against this shower's supply.
+  // Insert an already-made ball (the single spawn path, OVERBLOOM attracts, tools); it spends one ball
+  // from this shower's supply and is refused when the supply is already spent.
   function insertBall(sim, ball) {
-    if (!ball) return null;
+    if (!sim || !ball) return null;
+    if (!sim.stats) return null;
+    if (num(sim.stats.ballsLeft, 0) <= 0) return null;
     if (!ball.trail || !ball.trail.length) ball.trail = [{ x: ball.x, y: ball.y }];
     sim.balls.push(ball);
-    sim.stats.ballsDropped += 1;
-    if (sim.stats.ballsLeft > 0) sim.stats.ballsLeft -= 1;
+    sim.stats.ballsLeft -= 1;
+    sim.stats.ballsDropped = num(sim.stats.ballsDropped, 0) + 1;
     return ball;
   }
 
@@ -99,11 +104,9 @@
   function dropBall(sim) {
     if (!sim || sim.paused || sim.over) return false;
     if (sim.phase !== 'play' && sim.phase !== 'build') return false;
-    const c = config();
-    if (sim.stats.ballsLeft <= 0) return false;
+    if (num(sim.stats && sim.stats.ballsLeft, 0) <= 0) return false;
     if (num(sim.dropper.cooldown, 0) > 0) return false;
-    if (sim.balls.length >= c.cascade.maxBallsInFlight) return false;
-    spawnBall(sim);
+    if (!spawnBall(sim)) return false;
     resetDropTimer(sim);
     return true;
   }
@@ -180,10 +183,6 @@
     sim.sunwell = Math.max(0, num(sim.sunwell, 1) - 1);
     fx(sim, { type: 'floater', x: num(ev.x, 640), y: num(ev.y, 740) - 24, text: 'SUNWELL -1', colour: 'coral' });
     log(sim, 'SUNWELL -1 - ' + sim.sunwell + ' drops left', 'drain');
-    if (sim.sunwell <= 0) {
-      sim.over = { result: 'lost', reason: 'sunwell', shower: sim.shower };
-      log(sim, 'SUNWELL DRY - RUN LOST', 'lose');
-    }
   }
 
   function onPeg(sim, ev) {
@@ -248,9 +247,6 @@
     }
     events.length = 0;
 
-    if (num(sim.sunwell, 0) <= 0 && !sim.over) {
-      sim.over = { result: 'lost', reason: 'sunwell', shower: sim.shower };
-    }
     return events.length;
   }
 

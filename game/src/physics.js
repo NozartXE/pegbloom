@@ -326,13 +326,16 @@
     emit(sim, { type: 'drain', x: ball.x, y: f.y + f.h, ball: ball });
   }
 
-  // A ball past its max life becomes a faint straight fall: no pegs, no walls, just a drain.
+  // A ball past its max life fades on the spot and counts as a drain, so no ball can stay live forever.
   function resolveFaded(sim, ball, prevY) {
     const f = board().field;
     ball.alive = false;
     ball.faded = true;
-    emit(sim, { type: 'faded', x: ball.x, y: prevY, ball: ball });
-    emit(sim, { type: 'drain', x: ball.x, y: f.y + f.h, ball: ball, faded: true });
+    ball.fadeTick = num(sim.tick, 0);
+    const x = clamp(fin(ball.x), f.x + ball.r, f.x + f.w - ball.r);
+    const y = clamp(fin(prevY), f.y + ball.r, f.y + f.h - ball.r);
+    emit(sim, { type: 'faded', x: x, y: y, ball: ball });
+    emit(sim, { type: 'drain', x: x, y: y, ball: ball, faded: true });
   }
 
   // Petal gates are rotating line-segment deflectors; push out and reflect only the into-face velocity.
@@ -480,6 +483,15 @@
     if (ball.alive) collideCupRim(sim, ball);
   }
 
+  // Hard ceiling on how long a ball may stay live: config ballLifeTicks (720 = 12 s), with the
+  // older seconds value as a fallback. A ball at the ceiling fades and counts as a drain.
+  function maxLifeTicks() {
+    const cas = config().cascade;
+    const ticks = num(cas.ballLifeTicks, NaN);
+    if (ticks > 0) return Math.max(1, Math.round(ticks));
+    return Math.max(1, Math.round(num(cas.ballLife, 12) * 60));
+  }
+
   // One fixed step (1/60 s) over every live ball. Returns the count of balls still in flight.
   function stepBalls(sim, dt) {
     const balls = sim.balls;
@@ -489,7 +501,7 @@
     const cupRowY = board().cupY;
     const wind = sim.wind || {};
     const windForce = fin(wind.force);
-    const lifeTicks = Math.max(1, Math.round(num(config().cascade.ballLife, 12) * 60));
+    const lifeTicks = maxLifeTicks();
     const cupCross = cupRowY + board().ballRadius * 0.5;
     let alive = 0;
 
@@ -552,6 +564,7 @@
 
   globalThis.PB_Physics = {
     makeBall: makeBall,
+    maxLifeTicks: maxLifeTicks,
     stepBalls: stepBalls,
     collideGates: collideGates,
     resolveCupRow: resolveCupRow,

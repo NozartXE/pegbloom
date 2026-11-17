@@ -91,7 +91,7 @@
   function statsFor(row, diff) {
     return {
       ballsLeft: Math.max(1, Math.round(row.balls * diff.ballMul)),
-      quota: Math.max(1, Math.round(row.quota * diff.quotaMul)),
+      quota: row.boss ? 0 : Math.max(1, Math.round(row.quota * diff.quotaMul)),
       quotaGot: 0,
       blooms: 0,
       drains: 0,
@@ -156,8 +156,9 @@
     sim.cascade = { streak: 0, mult: 1, lastCatchTick: 0 };
     applyWind(sim, row);
     sim.banner = bannerFor(n, row);
+    const goal = row.boss ? 'DUSKFATHER - DRIVE HIM OFF' : 'BLOOM ' + sim.stats.quota + ' CUPS';
     sim.log = [
-      { text: 'SHOWER ' + n + ': ' + globalThis.PB_Gates.windFor(row.wind).name + ' - BLOOM ' + sim.stats.quota + ' CUPS', kind: 'shower', shower: n },
+      { text: 'SHOWER ' + n + ': ' + globalThis.PB_Gates.windFor(row.wind).name + ' - ' + goal, kind: 'shower', shower: n },
       { text: 'SUNWELL ' + sim.sunwell + ' / ' + c.sunwell.max + ' - ' + (row.pestBudget > 0 ? row.pestBudget + ' PESTS INBOUND' : 'CLEAR SKY'), kind: 'info', shower: n },
     ];
     buildRoster(sim);
@@ -246,6 +247,7 @@
       feats: featsState(),
       endless: false,
       paused: false,
+      autoDrop: false,
       runStartTick: 0,
       runEndTick: 0,
     };
@@ -293,6 +295,75 @@
     return !sim.rows || sim.rows.boss !== true || (sim.boss != null && sim.boss.alive === false);
   }
 
+  // The one place the Sunwell can empty: over means the run is lost and the phase is 'lost'.
+  function lose(sim, reason, text) {
+    if (!sim || sim.over) return sim;
+    sim.over = { result: 'lost', reason: reason, shower: sim.shower };
+    sim.phase = 'lost';
+    sim.runEndTick = sim.tick;
+    if (sim.boss) {
+      // The run is over; stop the moth shedding into a closed board.
+      if (typeof sim.boss.spawnTicks === 'number') sim.boss.spawnTicks = -Infinity;
+    }
+    if (globalThis.PB_Cascade && typeof globalThis.PB_Cascade.log === 'function') {
+      globalThis.PB_Cascade.log(sim, text, 'lose');
+    }
+    return sim;
+  }
+
+  function win(sim, reason) {
+    if (!sim || sim.over) return sim;
+    sim.over = { result: 'won', reason: reason, shower: sim.shower };
+    sim.phase = 'won';
+    sim.runEndTick = sim.tick;
+    if (globalThis.PB_Cascade && typeof globalThis.PB_Cascade.log === 'function') {
+      globalThis.PB_Cascade.log(sim, 'THE DUSKFATHER RETREATS - RUN WON', 'win');
+    }
+    return sim;
+  }
+
+  // Close the shower once the budget is spent and no ball is live.
+  // Shower 9 is a boss goal: boss down = won; budget spent with a live boss = lost.
+  // Elsewhere: quota met = +1 Sunwell, quota missed = -2 Sunwell, and the run goes on while the Sunwell holds.
+  function resolveShower(sim) {
+    const s = sim.stats;
+    const maxSunwell = num(config().sunwell && config().sunwell.max, 10);
+    if (sim.over) {
+      sim.phase = sim.over.result === 'won' ? 'won' : 'lost';
+      return sim;
+    }
+    if (sim.rows && sim.rows.boss) {
+      if (bossDown(sim)) {
+        win(sim, 'boss');
+        return sim;
+      }
+      lose(sim, 'boss', 'BALLS SPENT - THE DUSKFATHER STILL HOVERS - RUN LOST');
+      return sim;
+    }
+    const quota = num(s.quota, 0);
+    const met = s.quotaGot >= quota;
+    if (met) {
+      const before = num(sim.sunwell, 0);
+      sim.sunwell = Math.min(maxSunwell, before + 1);
+      if (sim.sunwell > before && globalThis.PB_Cascade && typeof globalThis.PB_Cascade.log === 'function') {
+        globalThis.PB_Cascade.log(sim, 'QUOTA MET ' + s.quotaGot + '/' + quota + ' - SUNWELL +1 (' + sim.sunwell + '/' + maxSunwell + ')', 'win');
+      }
+    } else {
+      sim.sunwell = Math.max(0, num(sim.sunwell, 0) - 2);
+      if (globalThis.PB_Cascade && typeof globalThis.PB_Cascade.log === 'function') {
+        globalThis.PB_Cascade.log(sim, 'QUOTA MISSED ' + s.quotaGot + '/' + quota + ' - SUNWELL -2 (' + sim.sunwell + '/' + maxSunwell + ')', 'drain');
+      }
+    }
+    sim.showerResolved = true;
+    if (sim.sunwell <= 0) {
+      lose(sim, 'sunwell', 'SUNWELL DRY - RUN LOST');
+      return sim;
+    }
+    sim.phase = 'showerEnd';
+    sim.over = { result: 'end', reason: met ? 'quota' : 'quotaMiss', shower: sim.shower };
+    return sim;
+  }
+
   // One fixed tick: gates ease, spawns arrive, physics moves the balls, cascade scores the events, then shower-end checks.
   function stepSim(sim) {
     if (!sim || sim.paused) return sim;
@@ -312,35 +383,30 @@
     globalThis.PB_Cascade.stepDecay(sim);
     globalThis.PB_Cascade.stepCups(sim);
 
-    if (sim.over && sim.over.result === 'lost') {
-      sim.phase = 'lost';
+    if (sim.over) {
+      sim.phase = sim.over.result === 'won' ? 'won' : 'lost';
+      return sim;
+    }
+    if (num(sim.sunwell, 0) <= 0) {
+      lose(sim, 'sunwell', 'SUNWELL DRY - RUN LOST');
       return sim;
     }
     const s = sim.stats;
-    if (s.ballsLeft <= 0 && sim.balls.length === 0 && bossDown(sim)) {
-      sim.phase = 'showerEnd';
-      sim.showerResolved = true;
-      if (!sim.over) {
-        const cleared = s.quotaGot >= s.quota;
-        const final = sim.shower >= showersTotal() && !sim.endless;
-        sim.over = final && cleared
-          ? { result: 'won', reason: 'quota', shower: sim.shower }
-          : { result: 'end', reason: final ? 'quotaMiss' : 'showerOut', shower: sim.shower };
-      }
-    }
+    if (s.ballsLeft <= 0 && sim.balls.length === 0) resolveShower(sim);
     return sim;
   }
 
   function advanceSim(sim) {
     if (!sim) return sim;
-    if (sim.phase !== 'showerEnd' && sim.phase !== 'won' && sim.phase !== 'lost') return sim;
+    if (sim.phase === 'won' || sim.phase === 'lost') return sim;
+    if (sim.phase !== 'showerEnd') return sim;
     const s = sim.stats;
     const c = config();
-    if (sim.phase === 'showerEnd') sim.phase = sim.over && sim.over.result === 'won' ? 'won' : 'draft';
-    if (sim.over && sim.over.result === 'lost') sim.phase = 'lost';
+    const maxSunwell = num(c.sunwell && c.sunwell.max, 10);
     sim.runEndTick = sim.tick;
-    if (sim.phase === 'won' || sim.phase === 'lost') return sim;
     if (sim.endless && sim.shower >= showersTotal() + 1 && sim.feats) sim.feats.overbloom = true;
+    const bossShower = !!(sim.rows && sim.rows.boss);
+    const cleared = bossShower ? bossDown(sim) : s.quotaGot >= s.quota;
     sim.history.push({
       shower: sim.shower,
       day: sim.day,
@@ -351,22 +417,24 @@
       bestCascade: s.bestCascade,
       score: Math.max(0, Math.round(sim.score - num(sim.scoreAtShower, 0))),
       sunwell: sim.sunwell,
-      cleared: s.quotaGot >= s.quota,
+      cleared: cleared,
+      boss: bossShower,
       ballsUsed: s.ballsDropped,
     });
     sim.scoreAtShower = sim.score;
     const next = sim.shower + 1;
-    if (s.quotaGot >= s.quota) {
+    if (cleared) {
       const dayDone = sim.shower % 3 === 0 && sim.shower <= showersTotal();
       sim.score += c.score.showerClear + (dayDone ? c.score.dayClear : 0);
       if (globalThis.PB_Cascade.log) {
         const day = daysFor(sim.shower);
-        globalThis.PB_Cascade.log(sim, 'SHOWER ' + sim.shower + ' CLEARED +' + c.score.showerClear, 'win');
+        globalThis.PB_Cascade.log(sim, bossShower ? 'DUSKFATHER DRIVEN OFF +' + c.score.showerClear : 'SHOWER ' + sim.shower + ' CLEARED +' + c.score.showerClear, 'win');
         if (dayDone && day) globalThis.PB_Cascade.log(sim, (day.name || 'DAY ' + day.day).toUpperCase() + ' DONE +' + c.score.dayClear, 'win');
       }
-    } else if (globalThis.PB_Cascade.log) {
-      globalThis.PB_Cascade.log(sim, 'SHOWER ' + sim.shower + ' CLOSED UNDER QUOTA', 'info');
     }
+    // The Sunwell bonus for a met shower is applied once, in resolveShower; here it is only capped.
+    sim.sunwell = Math.min(maxSunwell, num(sim.sunwell, 0));
+    if (sim.sunwell >= maxSunwell && sim.feats) sim.feats.fullSunwell = next === showersTotal();
 
     if (next > showersTotal()) sim.endless = true;
 

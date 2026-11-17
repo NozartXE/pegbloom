@@ -69,7 +69,8 @@ globalThis.PB_CONFIG = {
     multiplierCap: 8,
     cascadeWindow: 0.9,
     cascadeDecayPerSecond: 0.55,
-    ballLife: 14,
+    ballLife: 12,
+    ballLifeTicks: 720,
     dropCooldown: 0.22,
     maxBallsInFlight: 24,
     linePegs: 4,
@@ -78,16 +79,18 @@ globalThis.PB_CONFIG = {
 
   sunwell: { max: 10 },
 
+  // Nine showers over three days. balls = dew-spheres supplied; quota = BLOOMS (cups caught this
+  // shower). Shower 9's quota is 0 because the Duskfather himself is the goal there.
   showers: [
-    { shower: 1, day: 1, balls: 12, quota: 14, wind: 'still', pestBudget: 0 },
-    { shower: 2, day: 1, balls: 14, quota: 20, wind: 'east', pestBudget: 2 },
-    { shower: 3, day: 1, balls: 16, quota: 28, wind: 'west', pestBudget: 3 },
-    { shower: 4, day: 2, balls: 18, quota: 40, wind: 'east', pestBudget: 5 },
-    { shower: 5, day: 2, balls: 20, quota: 56, wind: 'gust', pestBudget: 7 },
-    { shower: 6, day: 2, balls: 22, quota: 76, wind: 'west', pestBudget: 9 },
-    { shower: 7, day: 3, balls: 24, quota: 104, wind: 'east', pestBudget: 12 },
-    { shower: 8, day: 3, balls: 26, quota: 140, wind: 'gust', pestBudget: 15 },
-    { shower: 9, day: 3, balls: 34, quota: 999, wind: 'still', pestBudget: 12, boss: true },
+    { shower: 1, day: 1, balls: 30, quota: 13, wind: 'still', pestBudget: 0 },
+    { shower: 2, day: 1, balls: 32, quota: 15, wind: 'east', pestBudget: 2 },
+    { shower: 3, day: 1, balls: 34, quota: 17, wind: 'west', pestBudget: 3 },
+    { shower: 4, day: 2, balls: 36, quota: 19, wind: 'east', pestBudget: 5 },
+    { shower: 5, day: 2, balls: 38, quota: 21, wind: 'gust', pestBudget: 7 },
+    { shower: 6, day: 2, balls: 40, quota: 23, wind: 'west', pestBudget: 9 },
+    { shower: 7, day: 3, balls: 42, quota: 25, wind: 'east', pestBudget: 12 },
+    { shower: 8, day: 3, balls: 44, quota: 27, wind: 'gust', pestBudget: 15 },
+    { shower: 9, day: 3, balls: 56, quota: 0, wind: 'still', pestBudget: 12, boss: true },
   ],
 
   days: [
