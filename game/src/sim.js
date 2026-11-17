@@ -490,7 +490,8 @@
   function advanceSim(sim) {
     if (!sim) return sim;
     if (sim.phase === 'won' || sim.phase === 'lost') return sim;
-    if (sim.phase !== 'showerEnd') return sim;
+    // resolveShower parks the board in 'showerEnd'; a closed shower ('end') is the other legal entry.
+    if (sim.phase !== 'showerEnd' && !(sim.over && sim.over.result === 'end')) return sim;
     const s = sim.stats;
     const c = config();
     const maxSunwell = num(c.sunwell && c.sunwell.max, 10);
