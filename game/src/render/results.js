@@ -5,11 +5,11 @@
   const W = 1280;
   const H = 800;
   const TITLE = { x: 24, y: 54, w: 420 };
-  const PLAQUE = { x: 24, y: 94, w: 280, h: 296 };
+  const PLAQUE = { x: 24, y: 100, w: 280, h: 296 };
   const SPOT = { x: 448, y: 226, s: 0.66 };
-  const BUILD = { x: 572, y: 94, w: 300, h: 296 };
-  const META = { x: 906, y: 94, w: 350, h: 296 };
-  const META_Y = { x: 910, y: 118, w: 342 };
+  const BUILD = { x: 572, y: 100, w: 300, h: 296 };
+  const META = { x: 906, y: 100, w: 350, h: 296 };
+  const META_Y = { x: 910, y: 124, w: 342 };
   const TILES = { x: 24, y: 414, w: 656, h: 76 };
   const THRESH = { x: 24, y: 506, w: 656, h: 188 };
   const FEATS = { x: 704, y: 414, w: 552, h: 100 };
@@ -652,8 +652,8 @@
       textFit(ctx, 'NO RUNS RECORDED YET - R STARTS YOUR FIRST', HISTORY.x + 14, HISTORY.y + HISTORY.h * 0.58, HISTORY.w - 28, 20, { align: 'left', fill: p.ink, minSize: 10 });
       return;
     }
-    const top = HISTORY.y + 26;
-    const rowH = 25;
+    const top = HISTORY.y + 24;
+    const rowH = 23;
     for (let i = 0; i < rows.length; i += 1) {
       const r = rows[i] || {};
       const y = top + i * rowH;
