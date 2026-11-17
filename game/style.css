@@ -1,0 +1,115 @@
+/* Page and DOM overlay styling for PEGBLOOM: cream paper page, framed canvas, bright menus. */
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #FFF6E9;
+  color: #2B2118;
+  font-family: "Arial Narrow", "Arial", Impact, sans-serif;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+#game {
+  display: block;
+  width: min(1280px, 96vw);
+  height: auto;
+  aspect-ratio: 1280 / 800;
+  background: #FFF6E9;
+  border: 8px solid #FF7A59;
+  border-radius: 22px;
+  box-shadow: 0 10px 0 rgba(43, 33, 24, 0.12);
+  touch-action: none;
+}
+
+#overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 246, 233, 0.82);
+  padding: 4vh 4vw;
+  box-sizing: border-box;
+}
+
+#overlay.open { display: flex; }
+
+#overlay .panel {
+  width: min(880px, 92vw);
+  max-height: 88vh;
+  overflow: auto;
+  background: #FFFDF6;
+  border: 6px solid #FFC53D;
+  border-radius: 20px;
+  box-shadow: 0 8px 0 rgba(43, 33, 24, 0.15);
+  padding: 28px 34px;
+}
+
+#overlay h2 {
+  margin: 0 0 12px;
+  font-family: "Arial Narrow", "Arial", Impact, sans-serif;
+  font-stretch: condensed;
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #2B2118;
+}
+
+#overlay h3 {
+  margin: 18px 0 6px;
+  font-size: 22px;
+  text-transform: uppercase;
+  color: #2B2118;
+}
+
+#overlay p, #overlay li, #overlay label {
+  font-size: 18px;
+  line-height: 1.45;
+  color: #2B2118;
+}
+
+#overlay ul { margin: 6px 0 6px 22px; padding: 0; }
+#overlay li { margin: 3px 0; }
+
+#overlay .row { display: flex; align-items: center; gap: 14px; margin: 12px 0; }
+#overlay .row label { flex: 0 0 170px; font-weight: 700; text-transform: uppercase; }
+#overlay .row input[type="range"] { flex: 1; accent-color: #FF7A59; }
+#overlay .row output { flex: 0 0 56px; text-align: right; font-weight: 700; color: #FF7A59; }
+
+#overlay button {
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #2B2118;
+  background: #FFC53D;
+  border: 3px solid #2B2118;
+  border-radius: 12px;
+  padding: 10px 18px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #2B2118;
+}
+
+#overlay button:hover { background: #FF9FB2; }
+#overlay button:active { transform: translateY(3px); box-shadow: 0 1px 0 #2B2118; }
+
+#overlay button.close { background: #FF7A59; }
+#overlay button.close:hover { background: #4FD8A5; }
+
+#overlay .actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 22px; }
+
+#status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

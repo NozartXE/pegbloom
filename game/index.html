@@ -1,19 +1,50 @@
 <!doctype html>
+<!--
+  PEGBLOOM: drop the dawn through the great pegboard - steer the cascade with petal gates,
+  bloom the cups, and hold back the Duskfather through 9 showers.
+  WIN: meet the bloom quota in all 9 showers and drive off the Duskfather. LOSE: the Sunwell runs dry.
+  Scope: 5 contraptions - 4 pests + the Duskfather - 9 showers - 12 drafts - 3 difficulties - endless OVERBLOOM.
+  Tech: fixed 60 Hz seeded sim (plain classic scripts, one PB_* global per file); DOM-free sim modules
+  (config..sim) load headless in Node; headless bot tools verify balance and screenshot truth.
+-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Block Dodger</title>
-<style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #11141b; }
-  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  /* Read aloud, never shown: the status line screen readers announce. */
-  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-</style>
+<title>PEGBLOOM - a pachinko garden defense</title>
+<link rel="stylesheet" href="./style.css">
 </head>
 <body>
-<canvas id="game" aria-label="Block Dodger: move the paddle left and right to dodge falling blocks and catch coins"></canvas>
+<canvas id="game" width="1280" height="800" aria-label="PEGBLOOM: drop dew-spheres through a giant pegboard garden, steer them with petal gates and bloom the cups before the Sunwell runs dry"></canvas>
+<div id="overlay" role="dialog" aria-live="polite"></div>
 <p id="status" role="status" aria-live="polite"></p>
-<script type="module" src="./src/main.js"></script>
+<script src="./src/config.js"></script>
+<script src="./src/rng.js"></script>
+<script src="./src/pegboard.js"></script>
+<script src="./src/physics.js"></script>
+<script src="./src/cascade.js"></script>
+<script src="./src/gates.js"></script>
+<script src="./src/pests.js"></script>
+<script src="./src/duskfather.js"></script>
+<script src="./src/waves.js"></script>
+<script src="./src/contraptions.js"></script>
+<script src="./src/draft.js"></script>
+<script src="./src/save.js"></script>
+<script src="./src/audio.js"></script>
+<script src="./src/input.js"></script>
+<script src="./src/sim.js"></script>
+<script src="./src/render/board.js"></script>
+<script src="./src/render/balls.js"></script>
+<script src="./src/render/fx.js"></script>
+<script src="./src/render/sprites.js"></script>
+<script src="./src/render/hud.js"></script>
+<script src="./src/render/banner.js"></script>
+<script src="./src/render/title.js"></script>
+<script src="./src/render/draftscreen.js"></script>
+<script src="./src/render/results.js"></script>
+<script src="./src/render/howto.js"></script>
+<script src="./src/ui/menus.js"></script>
+<script src="./src/testhook.js"></script>
+<script src="./src/main.js"></script>
 </body>
 </html>
