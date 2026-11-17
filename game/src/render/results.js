@@ -887,7 +887,7 @@
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     backdrop(ctx);
-    titleBar(ctx);
+    titleBar(ctx, data);
     plaque(ctx, data);
     duskfatherSpot(ctx, data);
     statTiles(ctx, data);
