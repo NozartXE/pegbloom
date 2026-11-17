@@ -62,36 +62,66 @@
     text(ctx, str, x, y, size, { align: 'center', fill: fill });
   }
 
-  function floaters(ctx, item, age, t, tick) {
+  // Board field interior (from PB_CONFIG): floaters are laid out inside it, so
+  // score text never runs under the side HUD panels or off the board's edge.
+  function fieldRect() {
+    const c = globalThis.PB_CONFIG;
+    const f = c && c.board && c.board.field;
+    return f ? { x: f.x, y: f.y, w: f.w, h: f.h } : { x: 368, y: 150, w: 544, h: 520 };
+  }
+
+  // One floater's natural layout: where it wants to sit before separation.
+  function floaterLayout(ctx, item, age, t, tick) {
     const p = palette();
     const kind = item.colour || 'gold';
     const fill = p[kind] || (kind === 'ink' ? p.ink : kind);
     const size = item.big ? 36 : 24;
-    // Deterministic separation: simultaneous floaters at neighbouring pegs/cups used to draw
-    // exactly on top of each other. The spawn serial spreads them across 5 columns and 3 rows.
     const si = num(item.seedIndex, 0);
     const rise = 46 * (1 - Math.pow(1 - t, 2)) * (0.85 + (si % 3) * 0.15);
     const bob = Math.sin(tick * 0.09 + age * 0.3) * 1.6;
-    const fade = t < 0.72 ? 1 : 1 - (t - 0.72) / 0.28;
-    const pop = t < 0.12 ? 0.6 + (t / 0.12) * 0.4 : 1;
     const x = num(item.x, W * 0.5) + (((si * 37) % 5) - 2) * 16;
     const y = num(item.y, H * 0.5) + 22 - rise + bob - (si % 3) * (item.big ? 30 : 20);
+    const str = String(item.text == null ? '' : item.text);
+    const fit = helper('fitText');
+    const maxW = item.big ? 560 : 330;
+    let s = size;
+    if (fit) s = fit(ctx, str, maxW, size, item.big ? 24 : 16);
+    const meas = helper('measure');
+    const w = meas ? meas(ctx, str, s, 'bold') : str.length * s * 0.55;
+    return { x: x, y: y, size: s, w: w, str: str, fill: fill };
+  }
+
+  function floaters(ctx, item, age, t, tick) {
+    const p = palette();
+    const L = floaterLayout(ctx, item, age, t, tick);
+    const fade = t < 0.72 ? 1 : 1 - (t - 0.72) / 0.28;
+    const pop = t < 0.12 ? 0.6 + (t / 0.12) * 0.4 : 1;
+    const x = typeof item._lx === 'number' ? item._lx : L.x;
+    const y = typeof item._ly === 'number' ? item._ly : L.y;
     ctx.save();
     ctx.globalAlpha = clamp(fade, 0, 1);
     ctx.translate(x, y);
     ctx.scale(pop, pop);
     ctx.rotate(clamp(num(item.tilt, 0), -0.05, 0.05));
-    const str = String(item.text == null ? '' : item.text);
-    const fit = helper('fitText');
-    const maxW = item.big ? 640 : 430;
-    let s = size;
-    if (fit) s = fit(ctx, str, maxW, size, item.big ? 22 : 15);
-    outlined(ctx, str, 0, 0, s, fill);
+    // Backing pill: every floater sits on a paper chip with an ink rim, so its
+    // text can never smear into the pegs and petals behind it.
+    const rr = helper('roundRect');
+    const rrp = helper('roundRectPath');
+    const pw = L.w + 24;
+    const ph = L.size + 13;
+    if (rr) rr(ctx, -pw / 2, -ph / 2 - 1, pw, ph, ph / 2, rgba(p.paper, 0.94));
+    if (rrp) {
+      rrp(ctx, -pw / 2, -ph / 2 - 1, pw, ph, ph / 2);
+      ctx.lineWidth = item.big ? 3 : 2.2;
+      ctx.strokeStyle = p.ink;
+      ctx.stroke();
+    }
+    outlined(ctx, L.str, 0, 0, L.size, L.fill);
     // tiny gold underline so score text reads as a confetti tag rather than plain type
     if (item.big) {
       ctx.beginPath();
-      ctx.moveTo(-26, s * 0.55);
-      ctx.lineTo(26, s * 0.55);
+      ctx.moveTo(-26, L.size * 0.55);
+      ctx.lineTo(26, L.size * 0.55);
       ctx.lineWidth = 3;
       ctx.strokeStyle = p.gold;
       ctx.stroke();
@@ -445,11 +475,49 @@
 
   function drawFloaters(ctx, sim) {
     const tick = num(sim && sim.tick, 0);
+    const f = fieldRect();
+    const placed = [];
     for (let i = 0; i < floatQueue.length; i += 1) {
-      const f = floatQueue[i];
-      const age = tick - f.born;
-      if (age < 0 || age > FLOATER_LIFE) continue;
-      floaters(ctx, f, age, age / FLOATER_LIFE, tick);
+      const item = floatQueue[i];
+      const age = tick - item.born;
+      if (age < 0 || age > FLOATER_LIFE) {
+        delete item._lx;
+        delete item._ly;
+        continue;
+      }
+      const t = age / FLOATER_LIFE;
+      const L = floaterLayout(ctx, item, age, t, tick);
+      const pillW = L.w + 24;
+      const pillH = L.size + 17;
+      // Clamp the whole pill inside the board field, clear of the HUD panels.
+      let cx = L.x;
+      const minX = f.x + 8 + pillW / 2;
+      const maxX = f.x + f.w - 8 - pillW / 2;
+      cx = minX <= maxX ? clamp(cx, minX, maxX) : f.x + f.w / 2;
+      let cy = clamp(L.y, f.y + 26, f.y + f.h - 16);
+      // Separation pass: no two pills may share the same air. A colliding
+      // floater hops up one line at a time until it finds a free slot - this
+      // is what kills the overlapping text wall at the cup line.
+      for (let hop = 0; hop < 7; hop += 1) {
+        let hit = false;
+        for (let k = 0; k < placed.length; k += 1) {
+          const q = placed[k];
+          if (Math.abs(q.x - cx) < (q.w + pillW) / 2 + 6 && Math.abs(q.y - cy) < (q.h + pillH) / 2 + 3) {
+            hit = true;
+            break;
+          }
+        }
+        if (!hit) break;
+        cy -= pillH + 2;
+        if (cy < f.y + 26) {
+          cy = f.y + 26;
+          break;
+        }
+      }
+      placed.push({ x: cx, y: cy, w: pillW, h: pillH });
+      item._lx = cx;
+      item._ly = cy;
+      floaters(ctx, item, age, t, tick);
     }
   }
 
