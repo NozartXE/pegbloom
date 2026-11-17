@@ -205,8 +205,12 @@
     if (ev.socket) ev.socket.flash = 1;
   }
 
+  // physics.js reports the collision and half of its scoring hook; the damage, clear and seeds live in pests.js.
   function onPestHit(sim, ev) {
     sim.stats.pestHits += 1;
+    if (globalThis.PB_Pests && typeof globalThis.PB_Pests.onPestHit === 'function') {
+      globalThis.PB_Pests.onPestHit(sim, ev.pest || ev.pest_, ev.ball);
+    }
   }
 
   // One tick of dropper, cup and event handling. Call after physics.stepBalls.

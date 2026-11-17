@@ -99,6 +99,7 @@
       ballsDropped: 0,
       pestHits: 0,
       pestClears: 0,
+      pestsClearedShower: 0,
       bestCascade: 1,
       bossHits: 0,
       shake: 0,
@@ -142,6 +143,9 @@
     sim.balls.length = 0;
     sim.events.length = 0;
     sim.tulips = [];
+    // Pest bodies are circles physics collides with; they never survive into a new shower.
+    if (globalThis.PB_Pests && typeof globalThis.PB_Pests.clearAll === 'function') globalThis.PB_Pests.clearAll(sim);
+    else sim.pests = [];
     sim.stats = statsFor(row, sim.diff);
     sim.stats.shower = n;
     sim.scoreAtShower = sim.score;
@@ -209,6 +213,10 @@
       balls: [],
       pests: [],
       boss: null,
+      bossDown: false,
+      pestKills: 0,
+      pestSerial: 0,
+      spawnPlan: null,
       events: [],
       fx: [],
       log: [],
@@ -293,7 +301,9 @@
     globalThis.PB_Gates.stepGates(sim);
     autoDrop(sim);
     if (globalThis.PB_Waves && typeof globalThis.PB_Waves.stepSpawns === 'function') globalThis.PB_Waves.stepSpawns(sim);
+    if (globalThis.PB_Pests && typeof globalThis.PB_Pests.stepPests === 'function') globalThis.PB_Pests.stepPests(sim);
     globalThis.PB_Physics.stepBalls(sim, 1 / sim.stepHz);
+    if (sim.boss && globalThis.PB_Duskfather && typeof globalThis.PB_Duskfather.syncParts === 'function') globalThis.PB_Duskfather.syncParts(sim.boss);
     globalThis.PB_Cascade.consumeEvents(sim);
     if (globalThis.PB_Duskfather && typeof globalThis.PB_Duskfather.step === 'function') globalThis.PB_Duskfather.step(sim);
     globalThis.PB_Cascade.stepDecay(sim);
@@ -327,6 +337,7 @@
     if (sim.over && sim.over.result === 'lost') sim.phase = 'lost';
     sim.runEndTick = sim.tick;
     if (sim.phase === 'won' || sim.phase === 'lost') return sim;
+    if (sim.endless && sim.shower >= showersTotal() + 1 && sim.feats) sim.feats.overbloom = true;
     sim.history.push({
       shower: sim.shower,
       day: sim.day,
