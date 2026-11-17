@@ -626,7 +626,7 @@
       circle(ctx, THRESH.x + 30, y + 13, 13, reached ? p.gold : rgba(p.ink, 0.1), p.ink, 1.8);
       textFit(ctx, g.grade, THRESH.x + 30, y + 14, 20, 16, { align: 'center', fill: p.ink, minSize: 8 });
       textFit(ctx, formatScore(g.min), THRESH.x + 54, y + 14, 130, 22, { align: 'left', fill: p.ink, minSize: 9 });
-      if (isEarned) chipLabel(ctx, 'EARNED', THRESH.x + THRESH.w - 92, y + 14, 74, 22, p.gold);
+      if (isEarned) { roundRect(ctx, THRESH.x + THRESH.w - 92 - 37, y + 14 - 11, 74, 22, 11, p.gold); textFit(ctx, 'EARNED', THRESH.x + THRESH.w - 92, y + 14, 70, 13, { align: 'center', fill: p.ink, minSize: 8 }); }
       else if (reached) textFit(ctx, 'CLEARED', THRESH.x + THRESH.w - 30, y + 14, 80, 13, { align: 'right', fill: p.leaf, minSize: 8 });
       if (reached) {
         const ht = howto();
