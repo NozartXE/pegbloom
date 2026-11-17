@@ -1242,7 +1242,7 @@
     if (globalThis.PB_Balls && typeof globalThis.PB_Balls.draw === 'function') globalThis.PB_Balls.draw(ctx, sim);
     if (globalThis.PB_Fx && typeof globalThis.PB_Fx.draw === 'function') globalThis.PB_Fx.draw(ctx, sim);
     if (wantHud && globalThis.PB_Hud && typeof globalThis.PB_Hud.draw === 'function') globalThis.PB_Hud.draw(ctx, sim, app.view);
-    if (globalThis.PB_Banner && typeof globalThis.PB_Banner.draw === 'function') globalThis.PB_Banner.draw(ctx, sim);
+    if (globalThis.PB_Banner && typeof globalThis.PB_Banner.draw === 'function' && app.screen === 'play') globalThis.PB_Banner.draw(ctx, sim, app.screen);
   }
 
   function fillBackground(ctx) {

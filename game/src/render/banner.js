@@ -1,4 +1,4 @@
-// Draws the sliding event banner under the awning and owns the event-log box (used by the HUD's left panel).
+// Draws the sliding event banner under the awning and owns the event-log box (used by the HUD’s right column).
 (function () {
   if (typeof globalThis.PB_Banner === 'object' && globalThis.PB_Banner !== null) return;
 
@@ -144,11 +144,8 @@
     ctx.strokeStyle = p.ink;
     ctx.lineWidth = 2;
     ctx.stroke();
-    const split = splitBanner(ev);
-    const hasSub = !!split.sub;
-    const titleY = hasSub ? y + 24 : y + h * 0.5;
-    textFit(ctx, split.text, x + w * 0.5, titleY, w - 44, hasSub ? 31 : 38, { align: 'center', fill: p.ink, minSize: 16 });
-    if (hasSub) textFit(ctx, split.sub, x + w * 0.5, y + 47, w - 52, 19, { align: 'center', fill: p.ink, minSize: 11 });
+    // the banner string is shown once, verbatim: no prefix, no head/sub split
+    textFit(ctx, String(ev.text), x + w * 0.5, y + h * 0.5 + 1, w - 44, 26, { align: 'center', fill: p.ink, minSize: 13 });
     ctx.restore();
   }
 
@@ -209,8 +206,9 @@
     ctx.restore();
   }
 
-  function draw(ctx, sim) {
+  function draw(ctx, sim, screen) {
     if (!ctx || !sim) return;
+    if (screen !== 'play') return;
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     drawEvent(ctx, sim, num(sim.tick, 0));

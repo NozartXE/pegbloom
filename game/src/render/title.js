@@ -5,7 +5,10 @@
   const W = 1280;
   const H = 800;
   const LOGO = { x: 540, y: 26, r: 44 };
-  const WORD_Y = 132;
+  const WORD_Y = 112;
+  // wordmark cap: the heading fits both the width and a 150 px-tall band inside y 30..195
+  const WORD_MARK = { x: 30, y: 30, w: 1220, h: 150 };
+  const WORD_HI = Math.round(WORD_MARK.h * 0.85);
   const TAG_Y = 168;
   const PLAY = { x: 640, y: 236, w: 300, h: 52 };
   const DIFF = { x: 640, y: 298, w: 300, h: 40 };
@@ -268,16 +271,18 @@
   function wordmark(ctx) {
     const q = p();
     const h = howto();
-    const size = h.fitHeading ? h.fitHeading(ctx, 'PEGBLOOM', W * 0.5, WORD_Y, W - 60, {
-      align: 'center', fill: q.coral, stroke: q.ink, strokeW: 12, spacing: 4, baseline: 'alphabetic',
+    const size = h.fitHeading ? h.fitHeading(ctx, 'PEGBLOOM', W * 0.5, WORD_Y, WORD_MARK.w, {
+      align: 'center', fill: q.coral, stroke: q.ink, strokeW: 12, spacing: 4, baseline: 'alphabetic', hi: WORD_HI,
     }) : null;
     // a slim mint underline keeps the word grounded on the cream
+    const drawn = size ? Math.min(size.size, WORD_HI) : WORD_HI;
+    const penY = WORD_Y + (size ? Math.max(0, (WORD_HI - drawn) * 0.5) : 0);
     const w = size ? size.width : W - 80;
     const x0 = W * 0.5 - w * 0.5;
-    roundRect(ctx, x0 + w * 0.18, WORD_Y + 8, w * 0.64, 8, 4, q.mint);
+    roundRect(ctx, x0 + w * 0.18, penY + 8, w * 0.64, 8, 4, q.mint);
     ctx.beginPath();
-    ctx.moveTo(x0 + w * 0.18, WORD_Y + 12);
-    ctx.lineTo(x0 + w * 0.82, WORD_Y + 12);
+    ctx.moveTo(x0 + w * 0.18, penY + 12);
+    ctx.lineTo(x0 + w * 0.82, penY + 12);
     ctx.lineWidth = 2.4;
     ctx.strokeStyle = q.ink;
     ctx.stroke();

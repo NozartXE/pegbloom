@@ -1,4 +1,4 @@
-// Draws every play-screen HUD panel (objective, Sunwell, incoming pests, score/CASCADE, bloom quota, seeds, shower track, buttons, controls) and the build bar; the log box is drawn by PB_Banner.
+// Draws every play-screen HUD panel (objective, Sunwell, incoming pests, score/CASCADE, bloom quota, seeds, shower track, buttons, controls) and the build bar; the right column owns the EVENT LOG panel, drawn by PB_Banner.
 (function () {
   if (typeof globalThis.PB_Hud === 'object' && globalThis.PB_Hud !== null) return;
 
@@ -269,16 +269,10 @@
     const p = palette();
     const total = totalShowers();
     const n = num(sim.shower, 1);
-    const more = Math.max(0, total - n);
-    const st = names().states || {};
+    const more = Math.max(0, total - n + 1);
     panel(ctx, x, y, w, h, { r: 12, tab: 'OBJECTIVE', tabSize: 16, tabFill: p.mint });
-    const rowH = 28;
-    const winLabel = String(st.winning || 'WIN: bloom quota in N more showers').replace('N', String(more));
-    chip(ctx, 'WIN', x + 12, y + 18, 54, 24, p.mint);
-    textFit(ctx, winLabel, x + 74, y + 31, w - 86, 17, { align: 'left', fill: p.ink, minSize: 10 });
-    const loseLabel = String(st.losing || 'LOSE: sunwell dry').toUpperCase();
-    chip(ctx, 'LOSE', x + 12, y + 18 + rowH, 54, 24, p.coral);
-    textFit(ctx, loseLabel, x + 74, y + 31 + rowH, w - 86, 17, { align: 'left', fill: p.ink, minSize: 10 });
+    textFit(ctx, 'WIN: BLOOM QUOTA IN ' + more + ' MORE SHOWERS', x + 12, y + 30, w - 24, 17, { align: 'left', fill: p.ink, minSize: 10 });
+    textFit(ctx, 'LOSE: SUNWELL DRY', x + 12, y + 56, w - 24, 17, { align: 'left', fill: p.ink, minSize: 10 });
   }
 
   function sunwellPanel(ctx, sim, x, y, w, h) {
@@ -311,16 +305,16 @@
     panel(ctx, x, y, w, h, { r: 12, tab: 'INCOMING', tabSize: 16, tabFill: p.coral });
     const list = roster(sim);
     const rowH = 17;
-    const cy = y + 13;
+    const cy = y + 44;
     const rowLimit = 2;
-    if (!list.length) text(ctx, 'CLEAR SKY - NO PESTS', x + 12, y + 21, 16, { fill: p.leaf });
+    if (!list.length) text(ctx, 'CLEAR SKY - NO PESTS', x + 12, cy + 7, 16, { fill: p.leaf });
     for (let i = 0; i < list.length && i < rowLimit; i += 1) {
       const kind = list[i].kind;
       const left = Math.max(0, num(list[i].count, 0) - eliminations(sim, kind));
-      circle(ctx, x + 18, y + 13 + i * rowH + 7, 6, p[pestColour(kind)] || p.coral, p.ink, 1.6);
-      textFit(ctx, pestName(kind), x + 30, y + 13 + i * rowH + 7, 112, 15, { align: 'left', fill: p.ink, minSize: 9 });
-      text(ctx, 'x' + left, x + 150, y + 13 + i * rowH + 7, 16, { align: 'left', fill: left > 0 ? p.ink : rgba(p.ink, 0.4) });
-      textFit(ctx, pestTrait(kind), x + w - 10, y + 13 + i * rowH + 7, 76, 14, { align: 'right', fill: rgba(p.ink, 0.62), minSize: 9 });
+      circle(ctx, x + 18, cy + i * rowH + 7, 6, p[pestColour(kind)] || p.coral, p.ink, 1.6);
+      textFit(ctx, pestName(kind), x + 30, cy + i * rowH + 7, 112, 15, { align: 'left', fill: p.ink, minSize: 9 });
+      text(ctx, 'x' + left, x + 150, cy + i * rowH + 7, 16, { align: 'left', fill: left > 0 ? p.ink : rgba(p.ink, 0.4) });
+      textFit(ctx, pestTrait(kind), x + w - 10, cy + i * rowH + 7, 76, 14, { align: 'right', fill: rgba(p.ink, 0.62), minSize: 9 });
     }
     const bossShower = num(bossInfo.showers, total);
     const bossHere = n === bossShower;
@@ -351,8 +345,6 @@
     objectivePanel(ctx, sim, LEFT.x, 100, LEFT.w, 68);
     sunwellPanel(ctx, sim, LEFT.x, 176, LEFT.w, 110);
     incomingPanel(ctx, sim, LEFT.x, 294, LEFT.w, 132);
-    const banner = globalThis.PB_Banner;
-    if (banner && typeof banner.drawLog === 'function') banner.drawLog(ctx, sim);
   }
 
   // ---------- right panel ----------
@@ -364,7 +356,6 @@
     const streak = num(sim.cascade && sim.cascade.streak, 0);
     const best = viewBest(view);
     panel(ctx, x, y, w, h, { r: 12, tab: 'SCORE', tabSize: 16, tabFill: p.gold });
-    text(ctx, 'SCORE', x + 12, y + 22, 15, { fill: rgba(p.ink, 0.6) });
     textFit(ctx, formatScore(sim.score), x + 12, y + 48, w - 24, 32, { align: 'left', fill: p.ink, minSize: 18 });
     textFit(ctx, 'BEST ' + formatScore(best), x + 12, y + 74, w - 24, 16, { align: 'left', fill: rgba(p.ink, 0.72), minSize: 10 });
     // CASCADE: big plate that heats from gold to coral as the chain climbs.
@@ -418,19 +409,19 @@
   function seedsPanel(ctx, sim, x, y, w, h) {
     const p = palette();
     panel(ctx, x, y, w, h, { r: 12, tab: 'SEEDS', tabSize: 16, tabFill: p.leaf });
-    text(ctx, String(Math.round(num(sim.seeds, 0))), x + 12, y + 26, 24, { fill: p.ink });
+    text(ctx, String(Math.round(num(sim.seeds, 0))), x + 12, y + 38, 24, { fill: p.ink });
     const owned = [];
     const sockets = sim.sockets || [];
     for (let i = 0; i < sockets.length; i += 1) if (sockets[i] && sockets[i].kind) owned.push(sockets[i]);
     if (!owned.length) {
-      textFit(ctx, 'NO CONTRAPTIONS YET', x + 12, y + 58, w - 24, 15, { align: 'left', fill: rgba(p.ink, 0.7), minSize: 10 });
-      textFit(ctx, 'draft after this shower', x + 12, y + 74, w - 24, 14, { align: 'left', fill: p.leaf, minSize: 9 });
+      textFit(ctx, 'NO CONTRAPTIONS YET', x + 12, y + 70, w - 24, 15, { align: 'left', fill: rgba(p.ink, 0.7), minSize: 10 });
+      textFit(ctx, 'draft after this shower', x + 12, y + 86, w - 24, 14, { align: 'left', fill: p.leaf, minSize: 9 });
       return;
     }
     const icon = globalThis.PB_Board && globalThis.PB_Board.icon;
     for (let i = 0; i < owned.length && i < 8; i += 1) {
       const sx = x + 14 + (i % 8) * 38;
-      const sy = y + 62;
+      const sy = y + 74;
       roundRect(ctx, sx - 15, sy - 15, 30, 30, 8, mix(p.paper, p.gold, 0.25));
       ctx.lineWidth = 1.8;
       ctx.strokeStyle = rgba(p.ink, 0.55);

@@ -75,66 +75,87 @@
     });
   }
 
-  function playToShower(sim, policy, shower) {
+  // In shower n with the first drops already in: the banner, the trays and the readout all name shower n.
+  function inShower(sim, n) {
+    return !!sim && sim.phase === 'play' && sim.shower === n && num(sim.stats && sim.stats.ballsDropped, 0) > 0;
+  }
+
+  // In the draft whose footer names shower n - the draft that opens once shower n-1 has closed.
+  function inDraftFor(sim, n) {
+    if (!sim || sim.phase !== 'draft') return false;
+    const target = num(sim.draft && sim.draft.target, sim.shower + 1);
+    return target === n;
+  }
+
+  // Drive one tick of the bot policy. A closed shower ('end') rolls the run on into the next draft, so the
+  // bookkeeping for the screen is refreshed after it; a won/lost run is a dead end for staging.
+  function drive(sim, policy) {
     const b = bot();
-    if (!sim || !b || typeof b.step !== 'function') return sim;
+    const m = main();
+    if (!sim || !b || typeof b.step !== 'function') return false;
+    if (sim.over && (sim.over.result === 'won' || sim.over.result === 'lost')) return false;
+    b.step(sim, policy);
+    if (sim.over && (sim.over.result === 'won' || sim.over.result === 'lost')) return false;
+    if (m && typeof m.endScreen === 'function') m.endScreen();
+    return true;
+  }
+
+  // Balls and floating score text on the frozen board, counted the same way the stager measures them.
+  function readBoard(sim) {
+    return { tick: num(sim && sim.tick, 0), balls: liveBalls(sim), floaters: activeFloaters(sim) };
+  }
+
+  // Pass 1 of the play shot: same seed and same policy, replay the run and find the liveliest tick of shower 5.
+  // First tick with >= 10 balls and >= 2 floaters wins; failing that, the tick with the most balls (earliest tie).
+  function findDenseTick(seed, policy) {
+    const api = simApi();
+    if (!api || typeof api.createSim !== 'function') return null;
+    const sim = api.createSim(seed, 'Normal');
+    let best = null;
     let guard = 0;
     while (guard < MAX_STEPS && !sim.over) {
-      if (sim.phase === 'play' && sim.shower >= shower && num(sim.stats && sim.stats.ballsDropped, 0) === 0) return sim;
-      b.step(sim, policy);
+      if (sim.shower === 5) {
+        const now = readBoard(sim);
+        if (now.balls >= 10 && now.floaters >= 2) return { tick: now.tick, balls: now.balls, floaters: now.floaters };
+        if (!best || now.balls > best.balls) best = { tick: now.tick, balls: now.balls, floaters: now.floaters };
+      }
+      if (sim.shower > 5) break;
+      if (!drive(sim, policy)) break;
       guard += 1;
     }
-    return sim;
+    return best;
   }
 
-  function advancePhase(sim, policy) {
-    const b = bot();
-    if (!sim || !b || typeof b.step !== 'function') return false;
-    const m = main();
-    if (m) m.freeze(false);
-    let before = sim.phase;
-    for (let i = 0; i < 4; i += 1) {
-      b.step(sim, policy);
-      if (sim.phase !== before || sim.over) break;
-      if (sim.phase === 'play' && num(sim.stats && sim.stats.ballsDropped, 0) > 0) break;
-    }
-    if (m && typeof m.endScreen === 'function') m.endScreen();
-    return sim.phase !== before;
-  }
-
-  // Play ticks until the board is at its liveliest: many balls in flight and floaters on screen.
-  function playToDenseTick(sim, policy, wantBalls, wantFloaters) {
-    const b = bot();
-    const m = main();
-    if (!sim || !b || typeof b.step !== 'function') return false;
-    if (m) m.freeze(false);
-    const cap = Math.min(6000, MAX_STEPS);
-    let fallback = null;
-    for (let i = 0; i < cap; i += 1) {
-      if (sim.over) return false;
-      if (sim.phase !== 'play') {
-        advancePhase(sim, policy);
-        continue;
-      }
-      b.step(sim, policy);
-      const balls = liveBalls(sim);
-      const floaters = activeFloaters(sim);
-      if (!fallback && balls >= 12 && floaters >= 1) fallback = { tick: sim.tick, balls: balls, floaters: floaters };
-      if (balls >= wantBalls && floaters >= wantFloaters) return true;
-    }
-    return !!fallback;
-  }
-
-  // The run the play shot is taken from: a bot drives showers 1-4, picks draft 0, and lands in shower 5.
-  function stagePlay(seed) {
+  // Pass 2 of the play shot: fresh run, same seed and policy, stop ON the recorded tick and hand it over frozen.
+  function freezeAtTick(seed, policy, target) {
     const m = main();
     if (!m || typeof m.startRun !== 'function') return null;
     m.startRun('Normal', seed);
     const sim = currentSim();
+    if (!sim) return null;
+    let guard = 0;
+    while (guard < MAX_STEPS && !sim.over && !inShower(sim, 5)) {
+      if (!drive(sim, policy)) break;
+      guard += 1;
+    }
+    let now = readBoard(sim);
+    while (guard < MAX_STEPS && inShower(sim, 5) && now.tick < target) {
+      if (!drive(sim, policy)) break;
+      guard += 1;
+      now = readBoard(sim);
+    }
+    return sim;
+  }
+
+  // The play shot: a bot drives showers 1-4 (pick 0, endBuild straight away), then shower 5 freezes mid-cascade.
+  function stagePlay(seed) {
+    const m = main();
+    if (!m || typeof m.startRun !== 'function') return null;
     const policy = qaBot({});
-    playToShower(sim, policy, 5);
-    advancePhase(sim, policy);
-    playToDenseTick(sim, policy, 16, 3);
+    // Pass 1 is a scratch run on the shared sim API: it only measures, the run main shows is rebuilt in pass 2.
+    const dense = findDenseTick(seed, policy);
+    const target = dense ? dense.tick : 0;
+    const sim = freezeAtTick(seed, policy, target);
     m.setScreen('play');
     m.stage(true);
     m.freeze(true);
@@ -165,22 +186,23 @@
     return demo;
   }
 
+  // The draft shot: stop in the draft that follows shower 4, whose footer reads "SHOWER 5 OF 9".
   function stageDraft(seed) {
     const m = main();
     if (!m || typeof m.startRun !== 'function') return null;
     m.startRun('Normal', seed);
     const sim = currentSim();
+    if (!sim) return null;
     const policy = qaBot({});
-    playToShower(sim, policy, 5);
     let guard = 0;
-    while (guard < MAX_STEPS && !sim.over && sim.phase !== 'draft') {
-      bot().step(sim, policy);
+    while (guard < MAX_STEPS && !inDraftFor(sim, 5)) {
+      if (!drive(sim, policy)) break;
       guard += 1;
     }
     m.setScreen('draft');
     m.stage(true);
     m.freeze(true);
-    if (sim) sim.paused = true;
+    sim.paused = true;
     m.render();
     return sim;
   }

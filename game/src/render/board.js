@@ -784,8 +784,8 @@
     ctx.lineWidth = 2.4;
     ctx.strokeStyle = p.ink;
     ctx.stroke();
-    // value number beneath, big
-    textFit(ctx, String(num(cup.value, 10)), x, y + h + 18, w + 8, 26, { align: 'center', fill: p.ink });
+    // value number inside the cup body, big, dark ink
+    textFit(ctx, String(num(cup.value, 10)), x, y + 44, w - 10, 22, { align: 'center', fill: p.ink, minSize: 10 });
     ctx.restore();
   }
 

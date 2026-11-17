@@ -695,7 +695,7 @@
         textFit(ctx, offer.effect, x + 18, y + 218, CARDS.w - 36, 19, { align: 'left', fill: p.ink, minSize: 11 });
         textFit(ctx, offer.synergy, x + 18, y + 254, CARDS.w - 36, 17, { align: 'left', fill: p.leaf, minSize: 10 });
         const matches = block && api && typeof api.byKey === 'function' && block.kind === (api.byKey(offer.key) || {}).key;
-        textFit(ctx, matches ? economy : economy, x + 18, y + 286, CARDS.w - 36, 17, { align: 'left', fill: matches ? p.coral : p.ink, minSize: 10 });
+        textFit(ctx, matches ? economy : economy, x + 18, y + 276, CARDS.w - 36, 17, { align: 'left', fill: matches ? p.coral : p.ink, minSize: 10 });
       } else {
         textFit(ctx, 'REROLL TO SEE THREE AGAIN', x + 18, y + 226, CARDS.w - 36, 19, { align: 'left', fill: p.ink, minSize: 11 });
       }
@@ -908,7 +908,7 @@
     const y = FOOT.y;
     const h = FOOT.h;
     panel(ctx, FOOT.x, y, 900, h, { r: 14, fill: p.paper, border: p.ink, tab: 'FORECAST', tabSize: 18, tabFill: p.sky });
-    const boardBox = { x: FOOT.x + 12, y: y + 22, w: 236, h: h - 32 };
+    const boardBox = { x: FOOT.x + 12, y: y + 12, w: 236, h: h - 32 };
     const mini = drawMiniBoard(ctx, sim, boardBox, data);
     const tx = boardBox.x + boardBox.w + 16;
     const tw = 900 - (tx - FOOT.x) - 16;
@@ -916,17 +916,17 @@
     const winfo = { key: row.wind || 'still', ...(winds()[row.wind] || winds().still) };
     const f = data.forecast;
     const windName = String(winfo.name || 'STILL AIR').toUpperCase();
-    textFit(ctx, 'SHOWER ' + targetFor(sim) + ': ' + windName + ' - ' + (row.boss ? 'DUSKFATHER' : 'BLOOM ' + num(row.quota, 0) + ' CUPS'), tx, y + 38, tw, 24, { align: 'left', fill: p.ink, minSize: 12 });
-    textFit(ctx, 'WITH YOUR BOARD AS BUILT - ' + (f ? num(f.balls, 12) + ' MOTES DROPPED' : 'MEASURING'), tx, y + 64, tw, 16, { align: 'left', fill: rgba(p.ink, 0.8), minSize: 9 });
-    forecastVerdict(ctx, sim, data, tx, y + 100, tw);
+    textFit(ctx, 'SHOWER ' + targetFor(sim) + ': ' + windName + ' - ' + (row.boss ? 'DUSKFATHER' : 'BLOOM ' + num(row.quota, 0) + ' CUPS'), tx, y + 28, tw, 24, { align: 'left', fill: p.ink, minSize: 12 });
+    textFit(ctx, 'WITH YOUR BOARD AS BUILT - ' + (f ? num(f.balls, 12) + ' MOTES DROPPED' : 'MEASURING'), tx, y + 54, tw, 16, { align: 'left', fill: rgba(p.ink, 0.8), minSize: 9 });
+    forecastVerdict(ctx, sim, data, tx, y + 90, tw);
     const landed = f ? num(f.landed, 0) : 0;
     const misses = f ? num(f.misses, 0) : 0;
     const cups = f && Array.isArray(f.cups) ? f.cups : [];
     let label = landed + ' LAND - ' + misses + ' DRAIN';
     if (misses > 0) label += ' (' + misses + ' SUNWELL PUT AT RISK)';
-    textFit(ctx, label, tx, y + 126, tw, 17, { align: 'left', fill: p.ink, minSize: 10 });
+    textFit(ctx, label, tx, y + 116, tw, 17, { align: 'left', fill: p.ink, minSize: 10 });
     if (cups.length) {
-      textFit(ctx, 'CUPS HIT: ' + cups.map(function (v, i) { return (i + 1) + ':' + num(v, 0); }).join('  '), tx, y + 150 - 2, tw, 15, { align: 'left', fill: rgba(p.ink, 0.8), minSize: 8 });
+      textFit(ctx, 'CUPS HIT: ' + cups.map(function (v, i) { return (i + 1) + ':' + num(v, 0); }).join('  '), tx, y + 140 - 2, tw, 15, { align: 'left', fill: rgba(p.ink, 0.8), minSize: 8 });
     }
     // The two seed-costed options, side by side under the verdict.
     const api = globalThis.PB_Draft;
