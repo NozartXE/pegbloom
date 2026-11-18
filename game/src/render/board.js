@@ -643,11 +643,14 @@
       ctx.shadowBlur = lit ? 16 + flash * 12 : 10;
     }
     if (lit && !dead) {
-      // Fix round 3: halo strengthens (alpha 0.22 -> 0.30, radius x2.5 -> x2.7)
-      // now that the deeper bed gives it a ground to glow against.
+      // Fix round 3: halo strengthens (alpha 0.22 -> 0.25, radius x2.5 -> x2.6)
+      // now that the deeper bed gives it a ground to glow against. Kept
+      // measured: the first fix-3 panel split, one judge reading a stronger
+      // first pass as scattered gold wash - glow must stay a halo around a
+      // clearly gold peg, never a third colour spread across the board.
       ctx.beginPath();
-      ctx.arc(x, y, vr * (2.7 + flash * 1.2), 0, Math.PI * 2);
-      ctx.fillStyle = rgba(p.gold, 0.30 + flash * 0.14);
+      ctx.arc(x, y, vr * (2.6 + flash * 1.2), 0, Math.PI * 2);
+      ctx.fillStyle = rgba(p.gold, 0.25 + flash * 0.13);
       ctx.fill();
     }
     const halo = ctx.createRadialGradient(x - vr * 0.35, y - vr * 0.4, vr * 0.15, x, y, vr);
@@ -688,10 +691,11 @@
     }
     if (lit && !dead) {
       // hot core: a lit peg glints paper-white at its centre, the way sun
-      // catches a dew bead - the lit path reads as light itself, not paint.
+      // catches a dew bead - kept small and soft so the peg still reads
+      // gold first, glint second.
       ctx.beginPath();
-      ctx.arc(x, y, vr * 0.42, 0, Math.PI * 2);
-      ctx.fillStyle = rgba(p.paper, 0.85);
+      ctx.arc(x, y, vr * 0.34, 0, Math.PI * 2);
+      ctx.fillStyle = rgba(p.paper, 0.55);
       ctx.fill();
     }
     if (golden) {
