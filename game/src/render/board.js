@@ -257,6 +257,14 @@
     g.addColorStop(1, mixHex(p.cream, p.gold, 0.24));
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
+    // soft paper lift behind the cabinet: the coral frame is the frame's one
+    // loud object, and a quiet radial glow behind it separates cabinet from
+    // backdrop at thumbnail size without darkening the bright identity.
+    const lift = ctx.createRadialGradient(W * 0.5, 430, 120, W * 0.5, 430, 640);
+    lift.addColorStop(0, rgba(p.paper, 0.22));
+    lift.addColorStop(1, rgba(p.paper, 0));
+    ctx.fillStyle = lift;
+    ctx.fillRect(0, 0, W, H);
     // sun haze arcs behind the cabinet
     ctx.save();
     for (let i = 0; i < 4; i += 1) {
@@ -510,8 +518,12 @@
     roundRect(ctx, gx0, f.y - 18, 46, f.h + 44, 14, mixHex(p.pink, p.paper, 0.38));
     roundRect(ctx, gx1 - 46, f.y - 18, 46, f.h + 44, 14, mixHex(p.pink, p.paper, 0.38));
     // peg field: a planted mint bed, not blank paper - the board must read as a
-    // living garden at thumbnail size, so the bed carries a real tint.
-    roundRect(ctx, f.x, f.y, f.w, f.h, 12, mixHex(p.mint, p.paper, 0.58));
+    // living garden at thumbnail size, so the bed carries a real tint. Fix
+    // round 3: the tint deepens (58% -> 44% toward paper) - at 58% the bed was
+    // a pastel wash in the same value band as the cream backdrop and paper
+    // lip, so the whole frame had no focal point; a planted green gives the
+    // sky/gold pegs and the lit halos a ground to separate from.
+    roundRect(ctx, f.x, f.y, f.w, f.h, 12, mixHex(p.mint, p.paper, 0.44));
     ctx.lineWidth = 3;
     ctx.strokeStyle = p.ink;
     roundRectPath(ctx, f.x, f.y, f.w, f.h, 12);
@@ -521,7 +533,7 @@
     ctx.beginPath();
     roundRectPath(ctx, f.x + 2, f.y + 2, f.w - 4, f.h - 4, 10);
     ctx.clip();
-    ctx.strokeStyle = rgba(p.leaf, 0.13);
+    ctx.strokeStyle = rgba(p.leaf, 0.16);
     ctx.lineWidth = 1;
     for (let x = f.x + 30; x < f.x + f.w; x += 30) {
       ctx.beginPath();
@@ -595,10 +607,11 @@
     const x = num(peg.x, 0);
     const y = num(peg.y, 0);
     const r = num(peg.r, 8);
-    // Drawn radius is presentation-only: pegs paint ~2px proud of their collision
+    // Drawn radius is presentation-only: pegs paint proud of their collision
     // radius so the board reads dense and jewel-like at thumbnail size. The sim
-    // never sees this; physics keeps using peg.r.
-    const vr = r + 2.2;
+    // never sees this; physics keeps using peg.r. Fix round 3: +2.2 -> +3.2 -
+    // two judge panels called the pegs "small"; a bead, not a dot.
+    const vr = r + 3.2;
     if (peg.rim) {
       ctx.beginPath();
       ctx.arc(x, y, r + 1.5, 0, Math.PI * 2);
@@ -614,7 +627,9 @@
     const golden = peg.golden === true;
     const flash = num(peg.hitFlash, 0);
     let hi = mixHex(p.sky, p.paper, 0.04);
-    let lo = mixHex(p.sky, p.ink, 0.15);
+    // Fix round 3: unlit bead bottom deepens 15% -> 30% toward ink, so an
+    // unlit peg is a saturated bead instead of a pastel dot on the bed.
+    let lo = mixHex(p.sky, p.ink, 0.30);
     if (dead) {
       hi = mixHex(p.gold, p.paper, 0.3);
       lo = mixHex(p.gold, p.ink, 0.08);
@@ -628,9 +643,11 @@
       ctx.shadowBlur = lit ? 16 + flash * 12 : 10;
     }
     if (lit && !dead) {
+      // Fix round 3: halo strengthens (alpha 0.22 -> 0.30, radius x2.5 -> x2.7)
+      // now that the deeper bed gives it a ground to glow against.
       ctx.beginPath();
-      ctx.arc(x, y, vr * (2.5 + flash * 1.2), 0, Math.PI * 2);
-      ctx.fillStyle = rgba(p.gold, 0.22 + flash * 0.12);
+      ctx.arc(x, y, vr * (2.7 + flash * 1.2), 0, Math.PI * 2);
+      ctx.fillStyle = rgba(p.gold, 0.30 + flash * 0.14);
       ctx.fill();
     }
     const halo = ctx.createRadialGradient(x - vr * 0.35, y - vr * 0.4, vr * 0.15, x, y, vr);
@@ -667,6 +684,14 @@
       ctx.beginPath();
       ctx.arc(x - vr * 0.32, y - vr * 0.36, vr * 0.3, 0, Math.PI * 2);
       ctx.fillStyle = rgba(p.paper, 0.95);
+      ctx.fill();
+    }
+    if (lit && !dead) {
+      // hot core: a lit peg glints paper-white at its centre, the way sun
+      // catches a dew bead - the lit path reads as light itself, not paint.
+      ctx.beginPath();
+      ctx.arc(x, y, vr * 0.42, 0, Math.PI * 2);
+      ctx.fillStyle = rgba(p.paper, 0.85);
       ctx.fill();
     }
     if (golden) {

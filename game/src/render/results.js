@@ -753,7 +753,7 @@
       ctx.stroke();
       if (lit) star(ctx, x + cw * 0.5, y + 18, 10, p.paper);
       else circle(ctx, x + cw * 0.5, y + 18, 10, rgba(p.paper, 1), rgba(p.ink, 0.3), 1.6);
-      textFit(ctx, f.name, x + cw * 0.5, y + 42, cw - 8, 13, { align: 'center', fill: lit ? p.ink : rgba(p.ink, 0.55), minSize: 7 });
+      textFit(ctx, f.name, x + cw * 0.5, y + 42, cw - 8, 13, { align: 'center', fill: lit ? p.ink : rgba(p.ink, 0.72), minSize: 7 });
     }
   }
 

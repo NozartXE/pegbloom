@@ -644,6 +644,203 @@
       ctx.stroke();
       circle(ctx, -r * 0.12, r * 0.22, r * 0.08, p.leaf);
       circle(ctx, r * 0.14, r * 0.3, r * 0.08, p.leaf);
+    } else if (key === 'goldenPeg') {
+      // a golden peg bead: gold body, ink rim, paper glint
+      circle(ctx, 0, 0, r * 0.5, p.gold, p.ink, lw);
+      circle(ctx, -r * 0.16, -r * 0.18, r * 0.15, p.paper, null, 0);
+      circle(ctx, 0, 0, r * 0.2, mix(p.gold, p.coral, 0.35), p.ink, lw * 0.6);
+    } else if (key === 'cascadeBell') {
+      // a bell that rings on x8: gold dome, coral clapper, sound arcs
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.46, r * 0.28);
+      ctx.quadraticCurveTo(-r * 0.4, -r * 0.52, 0, -r * 0.56);
+      ctx.quadraticCurveTo(r * 0.4, -r * 0.52, r * 0.46, r * 0.28);
+      ctx.closePath();
+      ctx.fillStyle = p.gold;
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.52, r * 0.34);
+      ctx.lineTo(r * 0.52, r * 0.34);
+      ctx.stroke();
+      circle(ctx, 0, r * 0.48, r * 0.11, p.coral, p.ink, lw * 0.6);
+      for (let i = 0; i < 2; i += 1) {
+        ctx.beginPath();
+        ctx.arc(0, -r * 0.05, r * (0.62 + i * 0.16), -0.7, 0.7);
+        ctx.lineWidth = lw * 0.7;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, -r * 0.05, r * (0.62 + i * 0.16), Math.PI - 0.7, Math.PI + 0.7);
+        ctx.stroke();
+      }
+    } else if (key === 'seedFan') {
+      // a fan of seeds: five drops spread on stems from one hand point
+      for (let i = -2; i <= 2; i += 1) {
+        const a = i * 0.42;
+        const sx = Math.sin(a) * r * 0.52;
+        const sy = -Math.cos(a) * r * 0.52;
+        ctx.beginPath();
+        ctx.moveTo(0, r * 0.55);
+        ctx.quadraticCurveTo(sx * 0.4, r * 0.1, sx, sy);
+        ctx.lineWidth = lw * 0.8;
+        ctx.strokeStyle = p.leaf;
+        ctx.stroke();
+        ctx.strokeStyle = p.ink;
+        circle(ctx, sx, sy, r * 0.13, i === 0 ? p.gold : p.mint, p.ink, lw * 0.6);
+      }
+      circle(ctx, 0, r * 0.55, r * 0.12, p.coral, p.ink, lw * 0.7);
+    } else if (key === 'mothNet') {
+      // a net: ring with a crosshatch, one moth caught at the knot
+      circle(ctx, 0, -r * 0.05, r * 0.52, null, p.ink, lw);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, -r * 0.05, r * 0.52, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.lineWidth = lw * 0.55;
+      for (let i = -2; i <= 2; i += 1) {
+        ctx.beginPath();
+        ctx.moveTo(i * r * 0.26 - r * 0.1, -r * 0.6);
+        ctx.lineTo(i * r * 0.26 + r * 0.1, r * 0.5);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.55, i * r * 0.24 - r * 0.05);
+        ctx.lineTo(r * 0.55, i * r * 0.24 - r * 0.05);
+        ctx.stroke();
+      }
+      ctx.restore();
+      ctx.beginPath();
+      ctx.moveTo(r * 0.3, r * 0.42);
+      ctx.lineTo(r * 0.52, r * 0.62);
+      ctx.lineWidth = lw * 1.4;
+      ctx.stroke();
+      circle(ctx, r * 0.08, -r * 0.12, r * 0.1, p.pink, p.ink, lw * 0.6);
+    } else if (key === 'wideCups') {
+      // a wide-mouthed cup: broad trapezoid, banded rim, one ball dropping in
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.58, -r * 0.18);
+      ctx.lineTo(r * 0.58, -r * 0.18);
+      ctx.lineTo(r * 0.36, r * 0.52);
+      ctx.lineTo(-r * 0.36, r * 0.52);
+      ctx.closePath();
+      ctx.fillStyle = p.sky;
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.58, r * 0.02);
+      ctx.lineTo(r * 0.58, r * 0.02);
+      ctx.lineWidth = lw * 0.7;
+      ctx.strokeStyle = rgba(p.paper, 0.85);
+      ctx.stroke();
+      ctx.strokeStyle = p.ink;
+      circle(ctx, 0, -r * 0.44, r * 0.13, p.gold, p.ink, lw * 0.6);
+    } else if (key === 'glowTrails') {
+      // a glowing ball with its trail: three fading arcs behind a hot sphere
+      for (let i = 0; i < 3; i += 1) {
+        ctx.beginPath();
+        ctx.arc(-r * 0.1, 0, r * (0.34 + i * 0.17), Math.PI * 0.6, Math.PI * 1.5);
+        ctx.lineWidth = lw * (1 - i * 0.22);
+        ctx.strokeStyle = i === 0 ? p.gold : rgba(p.gold, 0.75 - i * 0.2);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = p.ink;
+      circle(ctx, r * 0.14, 0, r * 0.3, p.sky, p.ink, lw * 0.8);
+      circle(ctx, r * 0.05, -r * 0.1, r * 0.11, p.paper, null, 0);
+    } else if (key === 'secondDropper') {
+      // two droppers side by side, each with its dew drop ready
+      for (let i = 0; i < 2; i += 1) {
+        const dx = (i === 0 ? -1 : 1) * r * 0.3;
+        ctx.beginPath();
+        ctx.moveTo(dx - r * 0.16, -r * 0.58);
+        ctx.lineTo(dx + r * 0.16, -r * 0.58);
+        ctx.lineTo(dx, -r * 0.18);
+        ctx.closePath();
+        ctx.fillStyle = i === 0 ? p.coral : p.gold;
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(dx, r * 0.08);
+        ctx.quadraticCurveTo(dx + r * 0.14, r * 0.3, dx, r * 0.44);
+        ctx.quadraticCurveTo(dx - r * 0.14, r * 0.3, dx, r * 0.08);
+        ctx.fillStyle = p.sky;
+        ctx.fill();
+        ctx.stroke();
+      }
+    } else if (key === 'bloomBumper') {
+      // coral bumper ring with a gold heart (matches the board icon)
+      circle(ctx, 0, 0, r * 0.55, p.coral, p.ink, lw);
+      circle(ctx, 0, 0, r * 0.27, p.gold, p.ink, lw * 0.7);
+      circle(ctx, -r * 0.14, -r * 0.16, r * 0.09, p.paper, null, 0);
+    } else if (key === 'splitterTulip') {
+      // a tulip that splits one ball into two: cup bloom, two drops leaving
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.3, r * 0.5);
+      ctx.quadraticCurveTo(-r * 0.28, -r * 0.02, -r * 0.46, -r * 0.3);
+      ctx.quadraticCurveTo(-r * 0.18, -r * 0.52, 0, -r * 0.24);
+      ctx.quadraticCurveTo(r * 0.18, -r * 0.52, r * 0.46, -r * 0.3);
+      ctx.quadraticCurveTo(r * 0.28, -r * 0.02, r * 0.3, r * 0.5);
+      ctx.closePath();
+      ctx.fillStyle = p.pink;
+      ctx.fill();
+      ctx.stroke();
+      circle(ctx, -r * 0.34, -r * 0.52, r * 0.1, p.sky, p.ink, lw * 0.6);
+      circle(ctx, r * 0.34, -r * 0.52, r * 0.1, p.sky, p.ink, lw * 0.6);
+    } else if (key === 'magnetTulip') {
+      // a horseshoe magnet in leaf green with gold poles
+      ctx.beginPath();
+      ctx.arc(0, -r * 0.1, r * 0.42, Math.PI, 0);
+      ctx.quadraticCurveTo(0, r * 0.26, -r * 0.42, -r * 0.1);
+      ctx.closePath();
+      ctx.fillStyle = p.leaf;
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.18, -r * 0.08);
+      ctx.lineTo(-r * 0.18, r * 0.18);
+      ctx.moveTo(r * 0.18, -r * 0.08);
+      ctx.lineTo(r * 0.18, r * 0.18);
+      ctx.strokeStyle = p.gold;
+      ctx.lineWidth = lw * 1.7;
+      ctx.stroke();
+      ctx.strokeStyle = p.ink;
+      ctx.lineWidth = lw;
+    } else if (key === 'fanLeaf') {
+      // a fan leaf: broad mint blade with a leaf-green vein and a dew bead
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.06, r * 0.58);
+      ctx.quadraticCurveTo(-r * 0.85, -r * 0.08, -r * 0.5, -r * 0.58);
+      ctx.quadraticCurveTo(r * 0.12, -r * 0.46, -r * 0.06, r * 0.58);
+      ctx.closePath();
+      ctx.fillStyle = p.mint;
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.08, r * 0.44);
+      ctx.quadraticCurveTo(-r * 0.36, -r * 0.08, -r * 0.44, -r * 0.42);
+      ctx.strokeStyle = p.leaf;
+      ctx.stroke();
+      ctx.strokeStyle = p.ink;
+      circle(ctx, r * 0.38, -r * 0.4, r * 0.15, p.sky, p.ink, lw * 0.6);
+    } else if (key === 'springPad') {
+      // a spring pad: gold plate on a coral base over a coil
+      ctx.beginPath();
+      for (let i = 0; i <= 16; i += 1) {
+        const t = i / 16;
+        const yy = r * 0.34 - t * r * 0.5;
+        const xx = Math.sin(t * Math.PI * 4) * r * 0.3;
+        if (i === 0) ctx.moveTo(xx, yy);
+        else ctx.lineTo(xx, yy);
+      }
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(0, -r * 0.3, r * 0.52, r * 0.14, 0, 0, Math.PI * 2);
+      ctx.fillStyle = p.gold;
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(0, r * 0.44, r * 0.52, r * 0.12, 0, 0, Math.PI * 2);
+      ctx.fillStyle = p.coral;
+      ctx.fill();
+      ctx.stroke();
     } else {
       // duskLens
       circle(ctx, 0, 0, r * 0.52, rgba(p.pink, 0.9), p.ink, lw);

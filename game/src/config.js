@@ -8,7 +8,7 @@ globalThis.PB_PALETTE = {
   sky: '#1E9BFF',
   mint: '#14C98B',
   pink: '#FF7FA5',
-  leaf: '#2FA84F',
+  leaf: '#2B7A39',
   ink: '#221709',
 };
 

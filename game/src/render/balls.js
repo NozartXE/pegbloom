@@ -158,12 +158,13 @@
     const core = p.paper;
     ctx.save();
     ctx.globalAlpha = ghost ? 0.62 : 1;
-    // glow halo
-    const halo = ctx.createRadialGradient(x, y, r * 0.4, x, y, r * 3.1);
-    halo.addColorStop(0, rgba(glow > 0.5 ? p.gold : p.sky, 0.36 * (0.55 + glow * 0.45)));
+    // glow halo (fix round 3: wider and stronger - the ball is the action,
+    // it must be findable in one glance at contact-sheet size)
+    const halo = ctx.createRadialGradient(x, y, r * 0.4, x, y, r * 3.6);
+    halo.addColorStop(0, rgba(glow > 0.5 ? p.gold : p.sky, 0.44 * (0.55 + glow * 0.45)));
     halo.addColorStop(1, rgba(glow > 0.5 ? p.gold : p.sky, 0));
     ctx.beginPath();
-    ctx.arc(x, y, r * 3.1, 0, Math.PI * 2);
+    ctx.arc(x, y, r * 3.6, 0, Math.PI * 2);
     ctx.fillStyle = halo;
     ctx.fill();
     // sphere
@@ -219,10 +220,10 @@
     const f = field();
     const tick = num(sim.tick, 0);
     ctx.save();
-    ctx.lineWidth = 2.4;
-    ctx.setLineDash([3, 9]);
+    ctx.lineWidth = 3;
+    ctx.setLineDash([5, 7]);
     ctx.lineDashOffset = -((tick * 0.9) % 12);
-    ctx.strokeStyle = rgba(p.coral, 0.55);
+    ctx.strokeStyle = rgba(p.coral, 0.9);
     ctx.beginPath();
     ctx.moveTo(x, topY + 12);
     ctx.lineTo(x, Math.min(f.y + f.h - 8, topY + 270));

@@ -598,7 +598,10 @@
       drawnBackdrop(ctx, tick);
       wash(ctx, 0.25);
     } else {
-      wash(ctx, 0.62);
+      // Fix round 3: wash 0.62 -> 0.70 - at 0.62 the demo board sat at a
+      // muddy in-between alpha behind the panels; calmer ground lets the
+      // wordmark and the PLAY column carry the frame.
+      wash(ctx, 0.70);
     }
     // bright halo behind the wordmark so type stays high-contrast over moving balls
     const halo = ctx.createLinearGradient(0, 0, 0, 200);

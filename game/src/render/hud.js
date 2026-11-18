@@ -377,7 +377,7 @@
     for (let i = 0; i < pips; i += 1) {
       circle(ctx, px0 + i * span, y + h - 10, 6, i < lit ? (i < mult - 1 ? p.coral : p.gold) : rgba(p.ink, 0.12), p.ink, 1.6);
     }
-    text(ctx, 'STREAK', x + 12, y + h - 10, 12, { fill: rgba(p.ink, 0.55) });
+    text(ctx, 'STREAK', x + 12, y + h - 10, 12, { fill: rgba(p.ink, 0.75) });
   }
 
   function bloomPanel(ctx, sim, x, y, w, h) {
@@ -504,7 +504,7 @@
       roundRectPath(ctx, bx, y, bw, h, 10);
       ctx.stroke();
       textFit(ctx, d.label, bx + bw * 0.5, y + h * 0.5 + 1, bw - 22, 20, { align: 'center', fill: p.ink, minSize: 11 });
-      textFit(ctx, d.key, bx + bw - 10, y + h * 0.5 + 1, 14, 12, { align: 'right', fill: rgba(p.ink, 0.55), minSize: 9 });
+      textFit(ctx, d.key, bx + bw - 10, y + h * 0.5 + 1, 14, 12, { align: 'right', fill: rgba(p.ink, 0.75), minSize: 9 });
       box[d.id] = rect;
     }
   }
