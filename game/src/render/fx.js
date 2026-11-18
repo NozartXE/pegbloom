@@ -6,6 +6,11 @@
   const H = 800;
   const MAX_PARTICLES = 320;
   const FLOATER_LIFE = 68;
+  // Legibility cap (fix round 2): never more than this many floater pills on
+  // the board at once. A cascade can emit a dozen events inside a second;
+  // drawing them all tiles the field with pills that shrink to pure noise at
+  // contact-sheet size - the exact complaint of three blind panels.
+  const MAX_FLOATERS_SHOWN = 5;
   const BLOOM_LIFE = 54;
   const SPARK_LIFE = 26;
   const RING_LIFE = 30;
@@ -70,22 +75,38 @@
     return f ? { x: f.x, y: f.y, w: f.w, h: f.h } : { x: 368, y: 150, w: 544, h: 520 };
   }
 
+  // Display-only shortening: the sim's event strings stay untouched in the
+  // log and the save; only the pill on the board compresses the long ones,
+  // because a 30-character pill at contact-sheet size is noise, not news.
+  function displayText(str) {
+    let s = String(str == null ? '' : str);
+    const cling = s.indexOf(' CLINGS - ');
+    if (cling >= 0) s = s.slice(cling + ' CLINGS - '.length);
+    if (s.indexOf('DRAINGRUB +1 SWALLOWED - ') === 0) s = 'LOST - ' + s.slice('DRAINGRUB +1 SWALLOWED - '.length);
+    if (s === 'MOSS CUSHION SAVED A DROP') s = 'CUSHION SAVE';
+    else if (s === 'SPRING PAD SAVED A DROP') s = 'PAD SAVE';
+    else if (s === 'DUSKFATHER SHEDS A MOTH') s = 'MOTH SHED';
+    return s;
+  }
+
   // One floater's natural layout: where it wants to sit before separation.
   function floaterLayout(ctx, item, age, t, tick) {
     const p = palette();
     const kind = item.colour || 'gold';
     const fill = p[kind] || (kind === 'ink' ? p.ink : kind);
-    const size = item.big ? 36 : 24;
+    // Fix round 2: minimum on-board type raised (24 -> 31, big 36 -> 48, fit
+    // floors 16/24 -> 22/32) so a pill still reads at contact-sheet scale.
+    const size = item.big ? 48 : 31;
     const si = num(item.seedIndex, 0);
     const rise = 46 * (1 - Math.pow(1 - t, 2)) * (0.85 + (si % 3) * 0.15);
     const bob = Math.sin(tick * 0.09 + age * 0.3) * 1.6;
     const x = num(item.x, W * 0.5) + (((si * 37) % 5) - 2) * 16;
     const y = num(item.y, H * 0.5) + 22 - rise + bob - (si % 3) * (item.big ? 30 : 20);
-    const str = String(item.text == null ? '' : item.text);
+    const str = displayText(item.text);
     const fit = helper('fitText');
-    const maxW = item.big ? 560 : 330;
+    const maxW = item.big ? 660 : 440;
     let s = size;
-    if (fit) s = fit(ctx, str, maxW, size, item.big ? 24 : 16);
+    if (fit) s = fit(ctx, str, maxW, size, item.big ? 32 : 22);
     const meas = helper('measure');
     const w = meas ? meas(ctx, str, s, 'bold') : str.length * s * 0.55;
     return { x: x, y: y, size: s, w: w, str: str, fill: fill };
@@ -477,6 +498,10 @@
     const tick = num(sim && sim.tick, 0);
     const f = fieldRect();
     const placed = [];
+    // Collect the live floaters, then apply the legibility cap: big events
+    // first, then the freshest. Selection is a total order over render data
+    // only (never the sim), so a frozen frame is byte-stable across runs.
+    const active = [];
     for (let i = 0; i < floatQueue.length; i += 1) {
       const item = floatQueue[i];
       const age = tick - item.born;
@@ -485,6 +510,19 @@
         delete item._ly;
         continue;
       }
+      active.push(item);
+    }
+    let shown = active;
+    if (active.length > MAX_FLOATERS_SHOWN) {
+      shown = active.slice().sort(function (a, b) {
+        if (!!b.big !== !!a.big) return b.big ? 1 : -1;
+        if (b.born !== a.born) return b.born - a.born;
+        return a.seedIndex - b.seedIndex;
+      }).slice(0, MAX_FLOATERS_SHOWN);
+    }
+    for (let i = 0; i < shown.length; i += 1) {
+      const item = shown[i];
+      const age = tick - item.born;
       const t = age / FLOATER_LIFE;
       const L = floaterLayout(ctx, item, age, t, tick);
       const pillW = L.w + 24;

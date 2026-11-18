@@ -521,7 +521,7 @@
     ctx.beginPath();
     roundRectPath(ctx, f.x + 2, f.y + 2, f.w - 4, f.h - 4, 10);
     ctx.clip();
-    ctx.strokeStyle = rgba(p.leaf, 0.2);
+    ctx.strokeStyle = rgba(p.leaf, 0.13);
     ctx.lineWidth = 1;
     for (let x = f.x + 30; x < f.x + f.w; x += 30) {
       ctx.beginPath();
@@ -537,18 +537,20 @@
     }
     // Garden texture in the gaps between pegs: deterministic flecks, buds and
     // grass blades from the same hash as the backdrop grain. Purely decorative;
-    // the sim neither knows nor cares that the bed is planted.
-    for (let i = 0; i < 130; i += 1) {
+    // the sim neither knows nor cares that the bed is planted. Fix round 2:
+    // thinned 130 -> 52 and softened - at contact-sheet size the full planting
+    // turned to grain that fought the pegs and pills for the eye.
+    for (let i = 0; i < 52; i += 1) {
       const dx = f.x + 12 + hash(i, 31) * (f.w - 24);
       const dy = f.y + 12 + hash(i, 57) * (f.h - 24);
       const kind = i % 3;
       if (kind === 0) {
         ctx.beginPath();
         ctx.arc(dx, dy, 2.2 + hash(i, 71) * 1.6, 0, Math.PI * 2);
-        ctx.fillStyle = rgba(i % 2 ? p.gold : p.pink, 0.55);
+        ctx.fillStyle = rgba(i % 2 ? p.gold : p.pink, 0.38);
         ctx.fill();
       } else if (kind === 1) {
-        ctx.strokeStyle = rgba(p.leaf, 0.5);
+        ctx.strokeStyle = rgba(p.leaf, 0.34);
         ctx.lineWidth = 1.6;
         ctx.beginPath();
         ctx.moveTo(dx - 3, dy + 3);
@@ -559,7 +561,7 @@
       } else {
         ctx.beginPath();
         ctx.arc(dx, dy, 1.5, 0, Math.PI * 2);
-        ctx.fillStyle = rgba(p.leaf, 0.45);
+        ctx.fillStyle = rgba(p.leaf, 0.32);
         ctx.fill();
       }
     }
